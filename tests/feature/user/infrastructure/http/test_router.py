@@ -1,27 +1,73 @@
+from unittest.mock import AsyncMock
+from fastapi import HTTPException
 import pytest
 from httpx import AsyncClient
+from src.entry.models import Users
+from src.shared.enum import UserProvider
+from src.user.infrastructure.oauth.login_strategy import GoogleLoginStrategy
+from src.user.infrastructure.oauth.models import OAuthUser
 from tests.factory import create_user
-from tests.conftest import client
+from tests.conftest import session
 
-@pytest.mark.asyncio
-async def test_login_success(client: AsyncClient, db_session):
-    user = await create_user(db_session, email="test@example.com", password="secret1234")
+pytestmark = pytest.mark.anyio
+
+
+async def test_login_success(session, client):
+    await create_user(session, email="test7@example.com", password="secret1234")
 
     response = await client.post(
         "/api/user/login",
-        json={"username": "test@example.com", "password": "secret1234"}
+        json={"username": "test7@example.com", "password": "secret1234"}
     )
 
     assert response.status_code == 200
 
 
-@pytest.mark.asyncio
-async def test_login_invalid_password(client: AsyncClient, db_session):
-    user = await create_user(db_session, email="test@example.com", password="secret")
+async def test_google_login_success(monkeypatch, client: AsyncClient):
+    # Fake OAuthUser
+    fake_user = OAuthUser(
+        id="123",
+        user_provider=UserProvider.GOOGLE,
+        name="Test User",
+        email="test2@example.com",
+        nickname="test@example.com",
+        avatar="http://avatar.url"
+    )
+
+    # Async mock the user_from_token method
+    async_mock = AsyncMock(return_value=fake_user)
+    monkeypatch.setattr(GoogleLoginStrategy, "user_from_token", async_mock)
+
+    response = await client.post(
+        "/api/user/oauth/login",
+        json={"access_token": "fake-token", "user_provider": "google", "platform": "web"}
+    )
+
+    assert response.status_code == 200
+
+
+
+async def test_google_login_invalid_token(monkeypatch, client: AsyncClient):
+    async def raise_exception(self, token: str):
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    monkeypatch.setattr(GoogleLoginStrategy, "user_from_token", raise_exception)
+
+    response = await client.post(
+        "/api/user/oauth/login",
+        json={"access_token": "fake-token", "user_provider": "google", "platform": "web"}
+    )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Invalid token"
+
+
+async def test_login_invalid_password(session, client):
+    user = await create_user(session, email="test5@example.com", password="secret")
 
     response = await client.post(
         "/api/user/login",
-        json={"username": "test@example.com", "password": "wrong"}
+        json={"username": "test5@example.com", "password": "wrong"}
     )
 
     assert response.status_code == 422

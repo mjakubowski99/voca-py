@@ -1,32 +1,35 @@
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker
+from contextvars import ContextVar
+from sqlalchemy.ext.asyncio import create_async_engine, async_scoped_session, async_sessionmaker, AsyncSession
 from config import settings
-import os
 
-# Pobranie URL z ENV
-DATABASE_URL = settings.database_url
+db_session_context: ContextVar[int | None] = ContextVar("db_session_context", default=None)
 
-# Asynchroniczny engine
-engine = create_async_engine(
-    DATABASE_URL,
-    echo=True,
-)
+engine = None
+AsyncLocalSession = None
 
-# Async sessionmaker
-AsyncSessionLocal = sessionmaker(
-    bind=engine,
-    class_=AsyncSession,
-    expire_on_commit=False
-)
+def set_db_session_context(session_id: int | None) -> None:
+    db_session_context.set(session_id)
 
-from contextlib import asynccontextmanager
+def get_db_session_context() -> int:
+    session_id = db_session_context.get()
+    if session_id is None:
+        raise ValueError("No session available")
+    return session_id
 
-@asynccontextmanager
-async def get_session() -> AsyncSession:
-    async with AsyncSessionLocal() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
+def get_session() -> AsyncSession:
+    if AsyncLocalSession is None:
+        raise RuntimeError("Database session not initialized")
+    return AsyncLocalSession()
+
+async def init_db():
+    global engine, AsyncLocalSession
+    engine = create_async_engine(settings.database_url)
+    AsyncLocalSession = async_scoped_session(
+        session_factory=async_sessionmaker(bind=engine, autoflush=False, autocommit=False),
+        scopefunc=get_db_session_context,
+    )
+
+async def close_db():
+    global engine
+    if engine:
+        await engine.dispose()

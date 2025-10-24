@@ -3,6 +3,7 @@ import typer
 from datetime import datetime
 from typing import Optional
 
+from src.entry.db import get_session
 from src.user.application.command.create_user import CreateUserHandler, CreateUserCommand
 from src.shared.util.hash import IHash
 from src.entry.container import container
