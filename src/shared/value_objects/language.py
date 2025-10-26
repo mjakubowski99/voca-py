@@ -40,21 +40,36 @@ class Language:
 
     # Static constructors for each language
     @classmethod
-    def pl(cls) -> "Language": return cls(LanguageEnum.PL.value)
+    def pl(cls) -> "Language":
+        return cls(LanguageEnum.PL.value)
+
     @classmethod
-    def en(cls) -> "Language": return cls(LanguageEnum.EN.value)
+    def en(cls) -> "Language":
+        return cls(LanguageEnum.EN.value)
+
     @classmethod
-    def it(cls) -> "Language": return cls(LanguageEnum.IT.value)
+    def it(cls) -> "Language":
+        return cls(LanguageEnum.IT.value)
+
     @classmethod
-    def es(cls) -> "Language": return cls(LanguageEnum.ES.value)
+    def es(cls) -> "Language":
+        return cls(LanguageEnum.ES.value)
+
     @classmethod
-    def fr(cls) -> "Language": return cls(LanguageEnum.FR.value)
+    def fr(cls) -> "Language":
+        return cls(LanguageEnum.FR.value)
+
     @classmethod
-    def de(cls) -> "Language": return cls(LanguageEnum.DE.value)
+    def de(cls) -> "Language":
+        return cls(LanguageEnum.DE.value)
+
     @classmethod
-    def zh(cls) -> "Language": return cls(LanguageEnum.ZH.value)
+    def zh(cls) -> "Language":
+        return cls(LanguageEnum.ZH.value)
+
     @classmethod
-    def cs(cls) -> "Language": return cls(LanguageEnum.CS.value)
+    def cs(cls) -> "Language":
+        return cls(LanguageEnum.CS.value)
 
     def get_enum(self) -> LanguageEnum:
         return self._value
@@ -70,3 +85,6 @@ class Language:
 
     def __repr__(self) -> str:
         return f"Language({self._value.value})"
+
+    class Config:
+        arbitrary_types_allowed = True

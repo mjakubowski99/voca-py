@@ -1,15 +1,15 @@
 from typing import Optional
 from sqlalchemy import select, update, delete
-from sqlalchemy.exc import NoResultFound
 from src.shared.value_objects.language import Language
 from src.shared.value_objects.user_id import UserId
 from src.shared.enum import UserProvider
-from src.entry.models import Users as User  # SQLAlchemy model
+from core.models import Users as User  # SQLAlchemy model
 from src.user.infrastructure.models import User as UserModel
 from src.user.application.repository.contracts import IUserRepository
 from src.user.domain.contracts import IUser  # Interface or Base class
-from src.entry.db import get_session
+from core.db import get_session
 from uuid import UUID
+
 
 class UserRepository(IUserRepository):
     def __init__(self, model=User):
@@ -29,14 +29,14 @@ class UserRepository(IUserRepository):
             password=user.password,
             profile_completed=user.profile_completed,
             user_language=Language(user.user_language),
-            learning_language=Language(user.learning_language)
+            learning_language=Language(user.learning_language),
         )
 
     async def find_by_email(self, email: str) -> Optional[IUser]:
         session = get_session()
         stmt = select(self.model).where(self.model.email == email)
         result = await session.execute(stmt)
-        user =  result.scalar_one_or_none()
+        user = result.scalar_one_or_none()
         if not user:
             return None
         return UserModel(
@@ -46,7 +46,7 @@ class UserRepository(IUserRepository):
             password=user.password,
             profile_completed=user.profile_completed,
             user_language=Language(user.user_language),
-            learning_language=Language(user.learning_language)
+            learning_language=Language(user.learning_language),
         )
 
     async def create(self, attributes: dict) -> IUser:
@@ -91,7 +91,7 @@ class UserRepository(IUserRepository):
             password=user.password,
             profile_completed=user.profile_completed,
             user_language=Language(user.user_language),
-            learning_language=Language(user.learning_language)
+            learning_language=Language(user.learning_language),
         )
 
     async def update(self, user: IUser) -> None:

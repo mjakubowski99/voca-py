@@ -2,12 +2,9 @@ from abc import ABC, abstractmethod
 
 from src.shared.value_objects.user_id import UserId
 from typing import Optional
-
-from abc import ABC, abstractmethod
-from typing import Optional
-from src.shared.value_objects.user_id import UserId
 from src.shared.enum import UserProvider
-from src.user.domain.contracts import IUser
+from src.shared.user.iuser import IUser
+
 
 class IUserRepository(ABC):
     @abstractmethod
@@ -48,9 +45,9 @@ class IUserRepository(ABC):
 
 class ITokenRepository(ABC):
     @abstractmethod
-    async def create(user_id: UserId) -> str:
+    async def create(user: IUser) -> str:
         pass
 
     @abstractmethod
-    async def verify(self, token: str) -> Optional[UserId]:
+    async def verify(self, token: str) -> Optional[IUser]:
         pass

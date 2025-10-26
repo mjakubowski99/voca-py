@@ -1,8 +1,7 @@
 from typing import Optional
-from src.shared.user.iuser import IUser
+from src.user.domain.contracts import IUser
 from src.user.application.repository.contracts import IUserRepository
 from src.shared.util.hash import IHash
-from src.user.application.dto.user_dto import UserDTO
 
 
 class LoginUserHandler:
@@ -20,4 +19,4 @@ class LoginUserHandler:
         if not self.hash.check(password, user.get_password()):
             return None
 
-        return UserDTO(user)
+        return user

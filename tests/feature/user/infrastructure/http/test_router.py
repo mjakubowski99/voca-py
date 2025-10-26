@@ -2,22 +2,20 @@ from unittest.mock import AsyncMock
 from fastapi import HTTPException
 import pytest
 from httpx import AsyncClient
-from src.entry.models import Users
+from sqlalchemy.ext.asyncio import AsyncSession
 from src.shared.enum import UserProvider
 from src.user.infrastructure.oauth.login_strategy import GoogleLoginStrategy
 from src.user.infrastructure.oauth.models import OAuthUser
 from tests.factory import create_user
-from tests.conftest import session
 
 pytestmark = pytest.mark.anyio
 
 
-async def test_login_success(session, client):
-    await create_user(session, email="test7@example.com", password="secret1234")
+async def test_login_success(session: AsyncSession, client):
+    await create_user(session, email="test@example.com", password="secret1234")
 
     response = await client.post(
-        "/api/user/login",
-        json={"username": "test7@example.com", "password": "secret1234"}
+        "/api/user/login", json={"username": "test@example.com", "password": "secret1234"}
     )
 
     assert response.status_code == 200
@@ -31,7 +29,7 @@ async def test_google_login_success(monkeypatch, client: AsyncClient):
         name="Test User",
         email="test2@example.com",
         nickname="test@example.com",
-        avatar="http://avatar.url"
+        avatar="http://avatar.url",
     )
 
     # Async mock the user_from_token method
@@ -40,11 +38,10 @@ async def test_google_login_success(monkeypatch, client: AsyncClient):
 
     response = await client.post(
         "/api/user/oauth/login",
-        json={"access_token": "fake-token", "user_provider": "google", "platform": "web"}
+        json={"access_token": "fake-token", "user_provider": "google", "platform": "web"},
     )
 
     assert response.status_code == 200
-
 
 
 async def test_google_login_invalid_token(monkeypatch, client: AsyncClient):
@@ -55,19 +52,18 @@ async def test_google_login_invalid_token(monkeypatch, client: AsyncClient):
 
     response = await client.post(
         "/api/user/oauth/login",
-        json={"access_token": "fake-token", "user_provider": "google", "platform": "web"}
+        json={"access_token": "fake-token", "user_provider": "google", "platform": "web"},
     )
 
     assert response.status_code == 401
     assert response.json()["detail"] == "Invalid token"
 
 
-async def test_login_invalid_password(session, client):
-    user = await create_user(session, email="test5@example.com", password="secret")
+async def test_login_invalid_password(session: AsyncSession, client):
+    await create_user(session, email="test@example.com", password="secret")
 
     response = await client.post(
-        "/api/user/login",
-        json={"username": "test5@example.com", "password": "wrong"}
+        "/api/user/login", json={"username": "test5@example.com", "password": "wrong"}
     )
 
     assert response.status_code == 422

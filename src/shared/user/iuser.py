@@ -2,14 +2,10 @@ from abc import ABC, abstractmethod
 from src.shared.value_objects.user_id import UserId
 from src.shared.value_objects.language import Language
 
+
 class IUser(ABC):
-    
     @abstractmethod
     def get_id(self) -> UserId:
-        pass
-
-    @abstractmethod
-    def get_password(self) -> str:
         pass
 
     @abstractmethod
@@ -26,8 +22,4 @@ class IUser(ABC):
 
     @abstractmethod
     def get_learning_language(self) -> Language:
-        pass
-
-    @abstractmethod
-    def profile_completed(self) -> bool:
         pass
