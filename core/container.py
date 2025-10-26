@@ -5,11 +5,17 @@ from src.flashcard.application.repository.contracts import (
     IFlashcardDuplicateRepository,
     IStoryRepository,
 )
+from src.flashcard.infrastructure.repository.flashcard_deck_read_repository import (
+    FlashcardDeckReadRepository,
+)
 from src.flashcard.infrastructure.repository.flashcard_deck_repository import (
     FlashcardDeckRepository,
 )
 from src.flashcard.infrastructure.repository.flashcard_duplicate_repository import (
     FlashcardDuplicateRepository,
+)
+from src.flashcard.infrastructure.repository.flashcard_read_repository import (
+    FlashcardReadRepository,
 )
 from src.flashcard.infrastructure.repository.story_repository import StoryRepository
 from src.shared.user.iuser_facade import IUserFacade
@@ -30,6 +36,8 @@ from config import settings
 
 container = punq.Container()
 
+container.register(FlashcardReadRepository)
+container.register(FlashcardDeckReadRepository)
 container.register(FlashcardDeckRepository)
 container.register(FlashcardDuplicateRepository)
 container.register(IFlashcardDeckRepository, FlashcardDeckRepository)

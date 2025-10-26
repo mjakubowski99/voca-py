@@ -1,4 +1,6 @@
 from abc import ABC, abstractmethod
+from optparse import Option
+from src.flashcard.application.dto.deck_details_read import DeckDetailsRead
 from src.flashcard.domain.models.deck import Deck
 from src.flashcard.domain.value_objects import FlashcardDeckId
 from typing import List, Optional
@@ -65,6 +67,18 @@ class IFlashcardDeckRepository(ABC):
     @abstractmethod
     async def bulk_delete(self, user_id: UserId, deck_ids: List[FlashcardDeckId]) -> None:
         """Deletes multiple decks by IDs for a given user."""
+        pass
+
+
+class IFlashcardDeckReadRepository(ABC):
+    @abstractmethod
+    async def find_details(
+        user_id: UserId,
+        flashcard_deck_id: FlashcardDeckId,
+        search: Optional[str],
+        page: int,
+        per_page: int,
+    ) -> DeckDetailsRead:
         pass
 
 

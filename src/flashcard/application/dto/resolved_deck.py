@@ -1,5 +1,4 @@
 from pydantic import BaseModel
-from typing import Any  # Replace Any with actual Deck type if defined
 from src.flashcard.domain.models.deck import Deck
 
 

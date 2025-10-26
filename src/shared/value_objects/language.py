@@ -1,10 +1,10 @@
 from typing import List
-from enum import Enum
 from src.shared.enum import Language as LanguageEnum
 from src.shared.enum import LanguageLevel
 
 
 class Language:
+    model_config = {"arbitarty_types_allowed": True}
     DEFAULT_LEVELS: List[LanguageLevel] = [
         LanguageLevel.A1,
         LanguageLevel.A2,
@@ -85,6 +85,3 @@ class Language:
 
     def __repr__(self) -> str:
         return f"Language({self._value.value})"
-
-    class Config:
-        arbitrary_types_allowed = True

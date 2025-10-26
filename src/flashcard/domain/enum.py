@@ -1,8 +1,17 @@
-from enum import Enum, IntEnum 
+from enum import Enum, IntEnum
+
 
 class FlashcardOwnerType(str, Enum):
     USER = "user"
     ADMIN = "admin"
+
+
+class GeneralRatingType(str, Enum):
+    NEW = "new"
+    WEAK = "weak"
+    UNKNOWN = "unknown"
+    GOOD = "good"
+    VERY_GOOD = "very_good"
 
 
 class Rating(IntEnum):

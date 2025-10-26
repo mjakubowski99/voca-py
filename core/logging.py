@@ -18,7 +18,7 @@ queue_handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(me
 logger.addHandler(queue_handler)
 
 # The blocking handler.
-rot_handler = RotatingFileHandler("api.log")
+rot_handler = RotatingFileHandler("logs/api.log")
 
 # Sitting comfortably in its own thread, isolated from async code.
 queue_listener = QueueListener(log_queue, rot_handler)
