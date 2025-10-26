@@ -1,64 +1,77 @@
-import asyncio
+from typing import AsyncIterator
+import uuid
+from core.db import get_session, init_db, close_db, set_db_session_context
+from httpx import ASGITransport, AsyncClient
 import pytest
-from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker
-from src.main import app
-from httpx._transports.asgi import ASGITransport
-from src.entry.models import Base
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
+from sqlalchemy.sql import text
 from config import settings
-from sqlalchemy import text
+from src.main import app
+from core.models import Base
 
-# Use a separate test database URL
-TEST_DATABASE_URL = settings.database_url
+TEST_DB_URL = settings.database_url
 
-@pytest.fixture(scope="session")
-def event_loop():
-    """Reuse the same event loop for async tests."""
-    loop = asyncio.get_event_loop()
-    yield loop
-    loop.close()
+
+@pytest.fixture
+def anyio_backend() -> str:
+    return "asyncio"
+
+
+# Separate engine to seed data for test
+@pytest.fixture
+def test_engine() -> AsyncEngine:
+    return create_async_engine(TEST_DB_URL, echo=True)
+
+
+@pytest.fixture
+def async_session_maker(test_engine) -> async_sessionmaker[AsyncSession]:
+    return async_sessionmaker(bind=test_engine, expire_on_commit=False)
+
+
+@pytest.fixture
+async def session(async_session_maker) -> AsyncSession:
+    async with async_session_maker() as session:
+        yield session
+
 
 @pytest.fixture(autouse=True)
-async def clean_tables(db_session):
-    """
-    Truncate all tables before each test.
-    """
-    async with db_session.begin():
-        for table in reversed(Base.metadata.sorted_tables):
-            await db_session.execute(text(f'TRUNCATE TABLE "{table.name}" RESTART IDENTITY CASCADE;'))
-    yield
-
-
-@pytest.fixture(scope="session", autouse=True)
-async def setup_database():
-    """
-    Create all tables in the test database before tests.
-    """
-    engine = create_async_engine(TEST_DATABASE_URL, future=True)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
+async def refresh_database(test_engine):
+    async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    async with test_engine.begin() as conn:
+        table_names = ", ".join(
+            [
+                f'"{table.schema}"."{table.name}"' if table.schema else f'"{table.name}"'
+                for table in Base.metadata.sorted_tables
+            ]
+        )
+
+        if table_names:
+            await conn.execute(text(f"TRUNCATE TABLE {table_names} RESTART IDENTITY CASCADE;"))
+
     yield
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-    await engine.dispose()
+
+
+# Fixture to init application database
+@pytest.fixture(autouse=True)
+async def init_database():
+    set_db_session_context(uuid.uuid4())
+    await init_db()
+    yield
+    await get_session().close()
+    await close_db()
 
 
 @pytest.fixture
-async def db_session():
-    engine = create_async_engine(TEST_DATABASE_URL, future=True)
-    async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-    async with async_session() as session:
-        yield session
-    await engine.dispose()
-
-
-@pytest.fixture
-async def client():
-    """
-    AsyncClient for testing FastAPI endpoints using ASGITransport.
-    """
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        yield ac
+async def client() -> AsyncClient:
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://localhost",
+    ) as client:
+        yield client

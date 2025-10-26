@@ -1,9 +1,13 @@
+import uuid
 import jwt
 from datetime import datetime, timedelta
 from typing import Optional
+from src.shared.user.iuser import IUser
+from src.shared.value_objects.language import Language
 from src.shared.value_objects.user_id import UserId
-from abc import ABC, abstractmethod
+from src.user.application.dto.user_dto import UserDTO
 from src.user.application.repository.contracts import ITokenRepository
+from src.user.infrastructure.models import User
 
 
 class JwtTokenRepository(ITokenRepository):
@@ -12,21 +16,38 @@ class JwtTokenRepository(ITokenRepository):
         self.algorithm = algorithm
         self.expires_in_minutes = expires_in_minutes
 
-    async def create(self, user_id: UserId) -> str:
+    async def create(self, user: IUser) -> str:
         payload = {
-            "sub": str(user_id),
+            "sub": str(user.get_id().value),
             "exp": datetime.utcnow() + timedelta(minutes=self.expires_in_minutes),
             "iat": datetime.utcnow(),
+            "user": {
+                "id": user.get_id().get_value(),
+                "email": user.get_email(),
+                "name": user.get_name(),
+                "user_language": user.get_user_language().get_value(),
+                "learning_language": user.get_learning_language().get_value(),
+            },
         }
         token = jwt.encode(payload, self.secret_key, algorithm=self.algorithm)
         return token
 
-    async def verify(self, token: str) -> Optional[UserId]:
+    async def verify(self, token: str) -> Optional[IUser]:
         try:
             payload = jwt.decode(token, self.secret_key, algorithms=[self.algorithm])
             user_id_str = payload.get("sub")
             if user_id_str:
-                return UserId.from_string(user_id_str)
+                return UserDTO(
+                    user=User(
+                        id=uuid.UUID(user_id_str),
+                        email=payload["user"]["email"],
+                        name=payload["user"]["name"],
+                        learning_language=Language.from_string(
+                            payload["user"]["learning_language"]
+                        ),
+                        user_language=Language.from_string(payload["user"]["user_language"]),
+                    )
+                )
             return None
         except jwt.ExpiredSignatureError:
             # Token expired

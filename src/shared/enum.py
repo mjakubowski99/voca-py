@@ -1,16 +1,16 @@
 from enum import Enum
+from typing import Dict, List
+
 
 class UserProvider(str, Enum):
-    GOOGLE = 'google'
-    APPLE = 'apple'
+    GOOGLE = "google"
+    APPLE = "apple"
 
-class Platform(str,Enum):
-    WEB = 'web'
-    ANDROID = 'android'
-    IOS = 'ios'
 
-from enum import Enum
-from typing import List
+class Platform(str, Enum):
+    WEB = "web"
+    ANDROID = "android"
+    IOS = "ios"
 
 
 class NotFoundException(Exception):
@@ -55,10 +55,6 @@ class Language(str, Enum):
             return mapping[self]
         except KeyError:
             raise NotFoundException(f"Unknown language: {self.value}")
-
-
-from enum import Enum
-from typing import Dict
 
 
 class LanguageLevel(str, Enum):

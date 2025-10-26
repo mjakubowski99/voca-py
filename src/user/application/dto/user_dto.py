@@ -11,9 +11,6 @@ class UserDTO(ISharedUser):
     def get_id(self) -> UserId:
         return self._domain_user.get_id()
 
-    def get_password(self) -> str:
-        return self._domain_user.get_password()
-
     def get_email(self) -> str:
         return self._domain_user.get_email()
 
@@ -25,6 +22,3 @@ class UserDTO(ISharedUser):
 
     def get_learning_language(self) -> Language:
         return self._domain_user.get_learning_language()
-
-    def profile_completed(self) -> bool:
-        return self._domain_user.get_profile_completed()

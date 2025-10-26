@@ -1,10 +1,11 @@
 from pydantic import BaseModel, EmailStr, Field
 from uuid import UUID, uuid4
-from enum import Enum
+from src.shared.user.iuser import IUser
 from src.shared.value_objects.language import Language
 from src.shared.value_objects.user_id import UserId
 
-class User(BaseModel):
+
+class User(BaseModel, IUser):
     id: UUID = Field(default_factory=uuid4)
     name: str
     email: EmailStr
@@ -13,9 +14,7 @@ class User(BaseModel):
     user_language: Language
     learning_language: Language
 
-    model_config = {
-        "arbitrary_types_allowed": True
-    }
+    model_config = {"arbitrary_types_allowed": True}
 
     # Methods equivalent to PHP model
     def get_id(self) -> UserId:

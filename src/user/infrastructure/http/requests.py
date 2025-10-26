@@ -4,12 +4,16 @@ from src.shared.enum import UserProvider, Platform
 
 
 class OAuthLoginRequest(BaseModel):
-    access_token: str = Field(..., description="External oauth service access token", example="eYjjwwawwaadasda")
-    user_provider: UserProvider = Field(..., description="OAuth provider", example=UserProvider.GOOGLE.value)
+    access_token: str = Field(
+        ..., description="External oauth service access token", example="eYjjwwawwaadasda"
+    )
+    user_provider: UserProvider = Field(
+        ..., description="OAuth provider", example=UserProvider.GOOGLE.value
+    )
     platform: Platform = Field(..., description="Client platform", example=Platform.WEB.value)
 
-    class Config:
-        use_enum_values = True  # Serialize enums as their values
+    model_config = {"arbitrary_types_allowed": True}
+
 
 class LoginRequest(BaseModel):
     username: Annotated[
