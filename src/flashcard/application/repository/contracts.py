@@ -3,6 +3,8 @@ from core.models import SmTwoFlashcards
 from src.flashcard.application.dto.deck_details_read import DeckDetailsRead
 from src.flashcard.application.dto.owner_deck_read import OwnerDeckRead
 from src.flashcard.domain.models.deck import Deck
+from src.flashcard.domain.models.flashcard_poll import FlashcardPoll
+from src.flashcard.domain.models.leitner_level_update import LeitnerLevelUpdate
 from src.flashcard.domain.value_objects import FlashcardDeckId
 from typing import List, Optional
 from src.flashcard.domain.models.story import Story
@@ -16,6 +18,9 @@ from src.flashcard.domain.models.flashcard import Flashcard
 from enum import Enum
 from src.flashcard.domain.models.next_session_flashcards import NextSessionFlashcards
 from src.flashcard.domain.value_objects import SessionId
+from src.shared.enum import SessionStatus
+from src.flashcard.domain.models.learning_session import LearningSession
+from src.flashcard.domain.models.rateable_session_flashcards import RateableSessionFlashcards
 
 
 class IFlashcardDeckRepository(ABC):
@@ -248,6 +253,45 @@ class ISmTwoFlashcardRepository(ABC):
     ) -> List[Flashcard]: ...
 
 
+class ISessionRepository(ABC):
+    @abstractmethod
+    async def update_status_by_id(
+        self, session_ids: List[SessionId], status: SessionStatus
+    ) -> None:
+        """Update the status of multiple sessions by their IDs."""
+        pass
+
+    @abstractmethod
+    async def set_all_owner_sessions_status(self, user_id: UserId, status: SessionStatus) -> None:
+        """Set the status for all sessions belonging to a specific user."""
+        pass
+
+    @abstractmethod
+    async def create(self, session: LearningSession) -> SessionId:
+        """Create a new session and return its SessionId."""
+        pass
+
+    @abstractmethod
+    async def update(self, session: LearningSession) -> None:
+        """Update an existing session."""
+        pass
+
+    @abstractmethod
+    async def find(self, session_id: SessionId) -> LearningSession:
+        """Find and return a session by its ID."""
+        pass
+
+    @abstractmethod
+    async def delete_all_for_user(self, user_id: UserId) -> None:
+        """Delete all sessions for a given user."""
+        pass
+
+    @abstractmethod
+    async def has_any_session(self, user_id: UserId) -> bool:
+        """Return True if the user has at least one session."""
+        pass
+
+
 class INextSessionFlashcardsRepository(ABC):
     @abstractmethod
     async def find(self, session_id: SessionId) -> NextSessionFlashcards:
@@ -257,4 +301,77 @@ class INextSessionFlashcardsRepository(ABC):
     @abstractmethod
     async def save(self, next_session_flashcards: NextSessionFlashcards) -> None:
         """Persist NextSessionFlashcards."""
+        pass
+
+
+class IRateableSessionFlashcardsRepository(ABC):
+    @abstractmethod
+    async def find(self, session_id: SessionId) -> RateableSessionFlashcards:
+        """
+        Finds and returns a RateableSessionFlashcards object for the given session ID.
+        Raises an exception if the session does not exist.
+        """
+        pass
+
+    @abstractmethod
+    async def save(self, flashcards: RateableSessionFlashcards) -> None:
+        """
+        Saves the RateableSessionFlashcards object to the database.
+        """
+        pass
+
+
+class IFlashcardPollRepository(ABC):
+    @abstractmethod
+    async def find_by_user(self, user_id: UserId, learnt_cards_purge_limit: int) -> FlashcardPoll:
+        """
+        Retrieves the FlashcardPoll for a given user, potentially purging
+        already learnt flashcards above a certain limit.
+        """
+        pass
+
+    @abstractmethod
+    async def purge_latest_flashcards(self, user_id: UserId, limit: int) -> None:
+        """
+        Removes the latest flashcards for a user up to a specified limit.
+        """
+        pass
+
+    @abstractmethod
+    async def select_next_leitner_flashcard(
+        self, user_id: UserId, exclude_flashcard_ids: List[FlashcardId], limit: int
+    ) -> List[FlashcardPoll]:
+        """
+        Selects the next flashcards for the Leitner system, excluding certain flashcards.
+        """
+        pass
+
+    @abstractmethod
+    async def save_leitner_level_update(self, update: LeitnerLevelUpdate) -> None:
+        """
+        Saves an update to a flashcard's Leitner level.
+        """
+        pass
+
+    @abstractmethod
+    async def save(self, poll: FlashcardPoll) -> None:
+        """
+        Saves or updates a FlashcardPoll.
+        """
+        pass
+
+    @abstractmethod
+    async def reset_leitner_level_if_max_level_exceeded(
+        self, user_id: UserId, max_level: int
+    ) -> None:
+        """
+        Resets the Leitner level of flashcards if they exceed the maximum level.
+        """
+        pass
+
+    @abstractmethod
+    async def delete_all_by_user_id(self, user_id: UserId) -> None:
+        """
+        Deletes all flashcards and related polls for a given user.
+        """
         pass

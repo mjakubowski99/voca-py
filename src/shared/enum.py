@@ -113,3 +113,13 @@ class SessionType(str, Enum):
             cls.UNSCRAMBLE_WORDS,
             # cls.WORD_MATCH,  # uncomment if you want WORD_MATCH included
         ]
+
+
+class SessionStatus(str, Enum):
+    STARTED = "started"
+    IN_PROGRESS = "in_progress"
+    FINISHED = "finished"
+
+    @classmethod
+    def active_statuses(cls) -> List[str]:
+        return [cls.STARTED.value, cls.IN_PROGRESS.value]
