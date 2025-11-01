@@ -21,7 +21,7 @@ class StoryCollection(BaseModel):
 
     def get_all_story_flashcards(self) -> Generator[StoryFlashcard, None, None]:
         for story in self.stories:
-            for flashcard in story.get_story_flashcards():
+            for flashcard in story.flashcards:
                 yield flashcard
 
     def get_all_flashcards_count(self) -> int:
@@ -50,7 +50,7 @@ class StoryCollection(BaseModel):
         stories_to_remove = []
 
         for index, story in enumerate(self.stories):
-            if len(story.get_story_flashcards()) == 1:
+            if len(story.flashcards) == 1:
                 stories_to_remove.append(index)
                 self.pulled_flashcards.append(story.get_story_flashcards()[0].get_flashcard())
 

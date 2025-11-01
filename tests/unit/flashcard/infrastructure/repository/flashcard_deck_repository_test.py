@@ -1,7 +1,7 @@
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.flashcard.domain.models.deck import Deck
-from tests.factory import create_user_owner, create_flashcard_deck
+from tests.factory import OwnerFactory, FlashcardDeckFactory
 from src.flashcard.domain.value_objects import FlashcardDeckId
 from src.flashcard.infrastructure.repository.flashcard_deck_repository import (
     FlashcardDeckRepository,
@@ -15,9 +15,9 @@ def get_repo() -> FlashcardDeckRepository:
 
 
 @pytest.mark.asyncio
-async def test_create_should_create_new_deck(session: AsyncSession):
+async def test_create_should_create_new_deck(owner_factory: OwnerFactory):
     deck = Deck(
-        owner=await create_user_owner(session),
+        owner=await owner_factory.create_user_owner(),
         name="Example deck",
         tag="Example deck",
         default_language_level=LanguageLevel.B2,
@@ -29,12 +29,15 @@ async def test_create_should_create_new_deck(session: AsyncSession):
 
 
 @pytest.mark.asyncio
-async def test_find_by_id_should_return_deck(session: AsyncSession):
+async def test_find_by_id_should_return_deck(
+    owner_factory: OwnerFactory,
+    deck_factory: FlashcardDeckFactory,
+):
     repo: FlashcardDeckRepository = get_repo()
 
     # Use the factory to create a deck
-    owner = await create_user_owner(session)
-    deck = await create_flashcard_deck(session, owner=owner)
+    owner = await owner_factory.create_user_owner()
+    deck = await deck_factory.create(owner=owner)
 
     # Fetch the deck by ID
     fetched_deck = await repo.find_by_id(FlashcardDeckId(value=deck.id))
@@ -46,8 +49,9 @@ async def test_find_by_id_should_return_deck(session: AsyncSession):
 
 
 @pytest.mark.asyncio
-async def test_find_by_id_should_raise_if_not_found(session: AsyncSession):
+async def test_find_by_id_should_raise_if_not_found():
     repo: FlashcardDeckRepository = get_repo()
+
     invalid_id = FlashcardDeckId(value=100000000)
 
     with pytest.raises(ValueError, match="Deck not found"):

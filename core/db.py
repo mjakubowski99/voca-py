@@ -1,11 +1,17 @@
 from config import settings
-from sqlalchemy.ext.asyncio import create_async_engine, async_scoped_session, async_sessionmaker, AsyncSession
+from sqlalchemy.ext.asyncio import (
+    create_async_engine,
+    async_scoped_session,
+    async_sessionmaker,
+    AsyncSession,
+)
 from contextvars import ContextVar
 
 db_session_context: ContextVar[int | None] = ContextVar("db_session_context", default=None)
 
 engine = None
 AsyncLocalSession = None
+
 
 def set_db_session_context(session_id: int | None) -> None:
     db_session_context.set(session_id)
@@ -26,7 +32,7 @@ def get_session() -> AsyncSession:
 
 async def init_db():
     global engine, AsyncLocalSession
-    engine = create_async_engine(settings.database_url)
+    engine = create_async_engine(settings.database_url, echo=True)
     AsyncLocalSession = async_scoped_session(
         session_factory=async_sessionmaker(bind=engine, autoflush=False, autocommit=False),
         scopefunc=get_db_session_context,

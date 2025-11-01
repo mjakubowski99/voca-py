@@ -16,6 +16,7 @@ from src.flashcard.domain.models.story_flashcard import StoryFlashcard
 from src.flashcard.domain.value_objects import FlashcardId, StoryId
 from config import settings
 
+
 class AiResponseFailedException(Exception):
     pass
 
@@ -23,14 +24,13 @@ class AiResponseFailedException(Exception):
 class AiResponseProcessingFailException(Exception):
     pass
 
-class GeminiGenerator(IFlashcardGenerator):
 
+class GeminiGenerator(IFlashcardGenerator):
     async def generate(self, owner: Owner, deck: Deck, prompt: FlashcardPrompt) -> StoryCollection:
         async with Client(api_key=settings.gemini_api_key).aio as client:
             try:
                 response = await client.models.generate_content(
-                    model='gemini-2.5-flash',
-                    contents=prompt.prompt
+                    model="gemini-2.5-flash", contents=prompt.prompt
                 )
             except Exception as e:
                 logging.error("Gemini API request failed", exc_info=e)
@@ -57,22 +57,21 @@ class GeminiGenerator(IFlashcardGenerator):
                     flashcard=Flashcard(
                         id=FlashcardId.no_id(),
                         front_word=str(row.get("word", "")),
-                        front_lang=prompt.word_lang if isinstance(prompt.word_lang, str) else prompt.word_lang.value,
+                        front_lang=prompt.word_lang,
                         back_word=str(row.get("trans", "")),
-                        back_lang=prompt.translation_lang if isinstance(prompt.translation_lang, str) else prompt.translation_lang.value,
+                        back_lang=prompt.translation_lang,
                         front_context=str(row.get("sentence", "")),
                         back_context=str(row.get("sentence_trans", "")),
                         owner=owner,
                         deck=deck,
                         level=deck.default_language_level,
                         emoji=Emoji(emoji=row["emoji"]) if "emoji" in row else None,
-                    )
+                    ),
                 )
             )
 
         result_stories = [
-            Story(id=StoryId.no_id(), flashcards=flashcards)
-            for flashcards in stories.values()
+            Story(id=StoryId.no_id(), flashcards=flashcards) for flashcards in stories.values()
         ]
 
         return StoryCollection(stories=result_stories)

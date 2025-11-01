@@ -1,19 +1,21 @@
 from dataclasses import dataclass
 from typing import Any
 from src.flashcard.application.services.deck_resolver import DeckResolver
+from src.shared.enum import LanguageLevel
 from src.shared.value_objects.language import Language
 
 from src.flashcard.application.services.flashcard_generator_service import FlashcardGeneratorService
+from src.shared.value_objects.user_id import UserId
 
 
 # Command DTO
 @dataclass(frozen=True)
 class GenerateFlashcards:
-    user_id: str
+    user_id: UserId
     front_lang: Language
     back_lang: Language
     deck_name: str
-    language_level: str
+    language_level: LanguageLevel
 
 
 # DTO for the result
@@ -41,8 +43,8 @@ class GenerateFlashcardsHandler:
         # Resolve deck
         resolved_deck = await self.deck_resolver.resolve_by_name(
             command.user_id,
-            command.front_lang.value,  # assuming Enum
-            command.back_lang.value,
+            command.front_lang,  # assuming Enum
+            command.back_lang,
             command.deck_name,
             command.language_level,
         )

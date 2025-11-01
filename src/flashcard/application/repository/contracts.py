@@ -1,15 +1,21 @@
 from abc import ABC, abstractmethod
-from optparse import Option
+from core.models import SmTwoFlashcards
 from src.flashcard.application.dto.deck_details_read import DeckDetailsRead
+from src.flashcard.application.dto.owner_deck_read import OwnerDeckRead
 from src.flashcard.domain.models.deck import Deck
 from src.flashcard.domain.value_objects import FlashcardDeckId
 from typing import List, Optional
 from src.flashcard.domain.models.story import Story
 from src.flashcard.domain.models.story_collection import StoryCollection
 from src.flashcard.domain.value_objects import StoryId, FlashcardId
+from src.shared.enum import LanguageLevel
 from src.shared.value_objects.user_id import UserId
 from src.shared.value_objects.language import Language
+from src.shared.enum import Language as LanguageEnum
 from src.flashcard.domain.models.flashcard import Flashcard
+from enum import Enum
+from src.flashcard.domain.models.next_session_flashcards import NextSessionFlashcards
+from src.flashcard.domain.value_objects import SessionId
 
 
 class IFlashcardDeckRepository(ABC):
@@ -79,6 +85,31 @@ class IFlashcardDeckReadRepository(ABC):
         page: int,
         per_page: int,
     ) -> DeckDetailsRead:
+        pass
+
+    @abstractmethod
+    async def get_admin_decks(
+        self,
+        user_id: UserId,
+        front_lang: LanguageEnum,
+        back_lang: LanguageEnum,
+        level: Optional[LanguageLevel],
+        search: Optional[str],
+        page: int,
+        per_page: int,
+    ) -> list[OwnerDeckRead]:
+        pass
+
+    @abstractmethod
+    async def get_by_user(
+        self,
+        user_id: UserId,
+        front_lang: LanguageEnum,
+        back_lang: LanguageEnum,
+        search: Optional[str],
+        page: int,
+        per_page: int,
+    ) -> list[OwnerDeckRead]:
         pass
 
 
@@ -170,3 +201,60 @@ class IFlashcardRepository(ABC):
         self, actual_deck_id: FlashcardDeckId, new_deck_id: FlashcardDeckId
     ) -> None:
         """Move all flashcards from one deck to another."""
+
+
+class FlashcardSortCriteria(Enum):
+    NOT_RATED_FLASHCARDS_FIRST = "NOT_RATED_FLASHCARDS_FIRST"
+    HARD_FLASHCARDS_FIRST = "HARD_FLASHCARDS_FIRST"
+    LOWEST_REPETITION_INTERVAL_FIRST = "LOWEST_REPETITION_INTERVAL_FIRST"
+    PLANNED_FLASHCARDS_FOR_CURRENT_DATE_FIRST = "PLANNED_FLASHCARDS_FOR_CURRENT_DATE_FIRST"
+    OLDEST_UPDATE_FLASHCARDS_FIRST = "OLDEST_UPDATE_FLASHCARDS_FIRST"
+    NOT_HARD_FLASHCARDS_FIRST = "NOT_HARD_FLASHCARDS_FIRST"
+    RANDOMIZE_LATEST_FLASHCARDS_ORDER = "RANDOMIZE_LATEST_FLASHCARDS_ORDER"
+    OLDER_THAN_FIVE_MINUTES_AGO_FIRST = "OLDER_THAN_FIVE_MINUTES_AGO_FIRST"
+    OLDER_THAN_FIFTEEN_SECONDS_AGO = "OLDER_THAN_THIRTY_SECONDS_AGO_FIRST"
+    EVER_NOT_VERY_GOOD_FIRST = "EVER_NOT_VERY_GOOD_FIRST"
+
+
+class ISmTwoFlashcardRepository(ABC):
+    @abstractmethod
+    async def reset_repetitions_in_session(self, user_id: UserId) -> None:
+        """Reset repetitions_in_session to 0 for all flashcards of a given user."""
+        ...
+
+    @abstractmethod
+    async def find_many(self, user_id: UserId, flashcard_ids: List[FlashcardId]) -> SmTwoFlashcards:
+        """Retrieve multiple SM-2 flashcards for a user by their flashcard IDs."""
+        ...
+
+    @abstractmethod
+    async def save_many(self, sm_two_flashcards: SmTwoFlashcards) -> None:
+        """Save or update multiple SM-2 flashcards in bulk."""
+        ...
+
+    @abstractmethod
+    async def get_next_flashcards(
+        self,
+        user_id: UserId,
+        limit: int,
+        exclude_flashcard_ids: List[FlashcardId],
+        sort_criteria: List[FlashcardSortCriteria],
+        cards_per_session: int,
+        from_poll: bool,
+        exclude_from_poll: bool,
+        front: Language,
+        back: Language,
+        deck_id: FlashcardDeckId,
+    ) -> List[Flashcard]: ...
+
+
+class INextSessionFlashcardsRepository(ABC):
+    @abstractmethod
+    async def find(self, session_id: SessionId) -> NextSessionFlashcards:
+        """Retrieve NextSessionFlashcards by session ID."""
+        pass
+
+    @abstractmethod
+    async def save(self, next_session_flashcards: NextSessionFlashcards) -> None:
+        """Persist NextSessionFlashcards."""
+        pass

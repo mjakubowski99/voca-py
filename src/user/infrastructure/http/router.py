@@ -5,6 +5,7 @@ from core.auth import get_current_user
 from core.container import container
 from core.generics import ResponseWrapper
 from src.shared.user.iuser import IUser
+from src.shared.value_objects.language import Language
 from src.user.application.command.create_external_user import (
     CreateExternalUser,
     CreateExternalUserHandler,
@@ -113,3 +114,17 @@ async def oauth_login(
             )
         ]
     )
+
+
+@router.get("/api/v2/languages")
+async def get_languages() -> list[dict]:
+    print(Language.all())
+    languages = [
+        {
+            "code": lang.get_value(),
+            "flag": f"https://api.vocasmart.pl/assets/flags/{lang.get_value().lower()}.svg",
+        }
+        for lang in Language.all()
+    ]
+
+    return languages

@@ -1,11 +1,15 @@
 from src.shared.enum import Platform, UserProvider
 from src.user.domain.contracts import IOAuthLogin, IOAuthUser
-from src.user.infrastructure.oauth.login_strategy import GoogleLoginStrategy, ILoginStrategy
+from src.user.infrastructure.oauth.login_strategy import (
+    AppleLoginStrategy,
+    GoogleLoginStrategy,
+    ILoginStrategy,
+)
 from config import settings
 from fastapi import HTTPException, status
 
-class OAuthLogin(IOAuthLogin):
 
+class OAuthLogin(IOAuthLogin):
     async def login(self, provider: UserProvider, token: str, platform: Platform) -> IOAuthUser:
         strategy = await self.get_strategy(provider, platform)
 
@@ -18,10 +22,10 @@ class OAuthLogin(IOAuthLogin):
             return GoogleLoginStrategy(settings.google_android_client_id)
         if provider == UserProvider.GOOGLE and platform == Platform.IOS:
             return GoogleLoginStrategy(settings.google_android_client_id)
+        if provider == UserProvider.APPLE:
+            return AppleLoginStrategy()
 
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"OAuth login for provider {provider.value} on {platform.value} is not supported"
+            detail=f"OAuth login for provider {provider.value} on {platform.value} is not supported",
         )
-
-        

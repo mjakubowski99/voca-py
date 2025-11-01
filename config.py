@@ -10,6 +10,12 @@ class Settings(BaseSettings):
     google_web_client_id: str
     gemini_api_key: str
 
+    apple_client_id: str
+    apple_team_id: str
+    apple_key_id: str
+    apple_private_key: str
+    apple_redirect_url: str
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 

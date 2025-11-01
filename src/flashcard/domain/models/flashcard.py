@@ -33,8 +33,7 @@ class Flashcard(BaseModel):
         if back_lang is None or level is None:
             raise ValueError("back_lang and level must be provided")
 
-        # Set learned language
-        values["learned_language"] = Language(value=back_lang.value)
+        values["learned_language"] = Language(value=back_lang.get_value())
 
         # Validate level
         if level not in values["learned_language"].get_available_levels():

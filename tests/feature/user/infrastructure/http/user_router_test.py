@@ -2,17 +2,15 @@ from unittest.mock import AsyncMock
 from fastapi import HTTPException
 import pytest
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
 from src.shared.enum import UserProvider
 from src.user.infrastructure.oauth.login_strategy import GoogleLoginStrategy
 from src.user.infrastructure.oauth.models import OAuthUser
-from tests.factory import create_user
-
-pytestmark = pytest.mark.anyio
+from tests.factory import UserFactory
 
 
-async def test_login_success(session: AsyncSession, client):
-    await create_user(session, email="test@example.com", password="secret1234")
+@pytest.mark.asyncio
+async def test_login_success(user_factory: UserFactory, client: AsyncClient):
+    await user_factory.create(email="test@example.com", password="secret1234")
 
     response = await client.post(
         "/api/user/login", json={"username": "test@example.com", "password": "secret1234"}
@@ -21,6 +19,7 @@ async def test_login_success(session: AsyncSession, client):
     assert response.status_code == 200
 
 
+@pytest.mark.asyncio
 async def test_google_login_success(monkeypatch, client: AsyncClient):
     # Fake OAuthUser
     fake_user = OAuthUser(
@@ -44,6 +43,7 @@ async def test_google_login_success(monkeypatch, client: AsyncClient):
     assert response.status_code == 200
 
 
+@pytest.mark.asyncio
 async def test_google_login_invalid_token(monkeypatch, client: AsyncClient):
     async def raise_exception(self, token: str):
         raise HTTPException(status_code=401, detail="Invalid token")
@@ -59,8 +59,9 @@ async def test_google_login_invalid_token(monkeypatch, client: AsyncClient):
     assert response.json()["detail"] == "Invalid token"
 
 
-async def test_login_invalid_password(session: AsyncSession, client):
-    await create_user(session, email="test@example.com", password="secret")
+@pytest.mark.asyncio
+async def test_login_invalid_password(client: AsyncClient, user_factory: UserFactory):
+    await user_factory.create(email="test@example.com", password="secret")
 
     response = await client.post(
         "/api/user/login", json={"username": "test5@example.com", "password": "wrong"}

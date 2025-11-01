@@ -1,9 +1,12 @@
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from pydantic import ValidationError
 from starlette.requests import Request
 import time
 import queue
 import logging
 from logging.handlers import QueueHandler, QueueListener, RotatingFileHandler
+import traceback
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
@@ -44,5 +47,21 @@ async def log_response_time(request: Request, call_next):
 
 
 async def exception_handler(request: Request, exc: Exception):
-    logger.error(f"ERROR {request.method} {request.url.path} | Exception: {exc}", exc_info=True)
-    return JSONResponse(status_code=500, content={"error": "Internal Server Error"})
+    if isinstance(exc, (RequestValidationError, ValidationError)):
+        detail = exc.errors()
+    else:
+        detail = str(exc)
+
+    # Log structured error message with traceback
+    logger.error(
+        f"ERROR {request.method} {request.url.path}\n"
+        f"Exception type: {exc.__class__.__name__}\n"
+        f"Detail: {detail}\n"
+        f"Traceback:\n{traceback.format_exc()}",
+        exc_info=False,  # no need for double traceback
+    )
+
+    return JSONResponse(
+        status_code=500,
+        content={"error": "Internal Server Error"},
+    )

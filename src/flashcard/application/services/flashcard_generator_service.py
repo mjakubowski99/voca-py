@@ -1,4 +1,4 @@
-from src.shared.value_objects import Language
+from src.shared.value_objects.language import Language
 from src.flashcard.application.dto.resolved_deck import ResolvedDeck
 from src.flashcard.domain.models.flashcard_prompt import FlashcardPrompt
 from src.flashcard.application.repository.contracts import IFlashcardDeckRepository
@@ -49,10 +49,10 @@ class FlashcardGeneratorService:
             default_language_level = deck.get_deck().default_language_level
 
             prompt = FlashcardPrompt(
-                deck_name=deck_name,
-                default_language_level=default_language_level,
-                front=front,
-                back=back,
+                category=deck_name,
+                language_level=default_language_level,
+                word_lang=front,
+                translation_lang=back,
                 words_count=words_count,
                 initial_letters_to_avoid=initial_letters_to_avoid,
             )
@@ -80,6 +80,6 @@ class FlashcardGeneratorService:
 
         except Exception as ex:
             # Rollback deck if it’s newly created
-            if not deck.is_existing_deck():
+            if not deck.is_existing_deck:
                 await self.deck_repository.remove(deck.get_deck())
             raise

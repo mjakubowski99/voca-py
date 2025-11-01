@@ -69,12 +69,12 @@ class FlashcardRepository(IFlashcardRepository):
                 "admin_id": f.owner.id.value if f.owner.is_admin() else None,
                 "flashcard_deck_id": f.deck.id.value,
                 "front_word": f.front_word,
-                "front_lang": f.front_lang.value,
+                "front_lang": f.front_lang.get_value(),
                 "back_word": f.back_word,
-                "back_lang": f.back_lang.value,
+                "back_lang": f.back_lang.get_value(),
                 "front_context": f.front_context,
                 "back_context": f.back_context,
-                "language_level": f.language_level.value,
+                "language_level": f.level.value,
                 "emoji": f.emoji.to_unicode() if f.emoji else None,
                 "created_at": now,
                 "updated_at": now,
@@ -90,23 +90,23 @@ class FlashcardRepository(IFlashcardRepository):
         and returns the updated StoryCollection.
         """
         session: AsyncSession = get_session()
-        now = (datetime.now(timezone.utc).replace(tzinfo=None),)
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
 
         insert_data = []
         for i, story_flashcard in enumerate(stories.get_all_story_flashcards()):
-            f = story_flashcard.get_flashcard()
+            f = story_flashcard.flashcard
             insert_data.append(
                 {
                     "user_id": f.owner.id.value if f.owner.is_user() else None,
                     "admin_id": f.owner.id.value if f.owner.is_admin() else None,
                     "flashcard_deck_id": f.deck.id.value,
                     "front_word": f.front_word,
-                    "front_lang": f.front_lang.value,
+                    "front_lang": f.front_lang.get_value(),
                     "back_word": f.back_word,
-                    "back_lang": f.back_lang.value,
+                    "back_lang": f.back_lang.get_value(),
                     "front_context": f.front_context,
                     "back_context": f.back_context,
-                    "language_level": f.language_level.value,
+                    "language_level": f.level.value,
                     "emoji": f.emoji.to_unicode() if f.emoji else None,
                     "created_at": now + timedelta(seconds=i),
                     "updated_at": now + timedelta(seconds=i),
@@ -120,7 +120,7 @@ class FlashcardRepository(IFlashcardRepository):
 
         # assign the generated IDs to the flashcards in the story collection
         for story_flashcard, new_id in zip(stories.get_all_story_flashcards(), inserted_ids):
-            story_flashcard.get_flashcard().id = new_id
+            story_flashcard.flashcard.id = new_id
 
         await session.commit()
         return stories

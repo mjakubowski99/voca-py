@@ -1,6 +1,6 @@
 import uuid
 import jwt
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from src.shared.user.iuser import IUser
 from src.shared.value_objects.language import Language
@@ -17,10 +17,12 @@ class JwtTokenRepository(ITokenRepository):
         self.expires_in_minutes = expires_in_minutes
 
     async def create(self, user: IUser) -> str:
+        exp_time = datetime.now(timezone.utc) + timedelta(minutes=self.expires_in_minutes)
+
         payload = {
             "sub": str(user.get_id().value),
-            "exp": datetime.utcnow() + timedelta(minutes=self.expires_in_minutes),
-            "iat": datetime.utcnow(),
+            "exp": exp_time.timestamp(),
+            "iat": datetime.now(timezone.utc).timestamp(),
             "user": {
                 "id": user.get_id().get_value(),
                 "email": user.get_email(),
@@ -38,20 +40,20 @@ class JwtTokenRepository(ITokenRepository):
             user_id_str = payload.get("sub")
             if user_id_str:
                 return UserDTO(
-                    user=User(
+                    domain_user=User(
                         id=uuid.UUID(user_id_str),
                         email=payload["user"]["email"],
+                        password="",
                         name=payload["user"]["name"],
                         learning_language=Language.from_string(
                             payload["user"]["learning_language"]
                         ),
                         user_language=Language.from_string(payload["user"]["user_language"]),
+                        profile_completed=True,
                     )
                 )
             return None
         except jwt.ExpiredSignatureError:
-            # Token expired
             return None
         except jwt.InvalidTokenError:
-            # Invalid token
             return None

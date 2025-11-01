@@ -1,5 +1,4 @@
 import pytest
-
 from core.models import FlashcardDecks
 from src.flashcard.domain.models.deck import Deck
 from src.flashcard.domain.models.owner import Owner
@@ -7,12 +6,8 @@ from src.flashcard.domain.value_objects import FlashcardDeckId
 from src.flashcard.infrastructure.repository.flashcard_duplicate_repository import (
     FlashcardDuplicateRepository,
 )
-from tests.factory import (
-    create_flashcard_deck,
-    create_user_owner,
-    create_flashcard,
-)
 from core.container import container
+from tests.factory import FlashcardDeckFactory, FlashcardFactory, OwnerFactory
 
 
 def get_duplicate_repo() -> FlashcardDuplicateRepository:
@@ -20,14 +15,18 @@ def get_duplicate_repo() -> FlashcardDuplicateRepository:
 
 
 @pytest.mark.asyncio
-async def test_get_already_saved_front_words(session):
-    owner: Owner = await create_user_owner(session)
-    deck: FlashcardDecks = await create_flashcard_deck(session, owner=owner)
+async def test_get_already_saved_front_words(
+    owner_factory: OwnerFactory,
+    deck_factory: FlashcardDeckFactory,
+    flashcard_factory: FlashcardFactory,
+):
+    owner: Owner = await owner_factory.create_user_owner()
+    deck: FlashcardDecks = await deck_factory.create(owner=owner)
 
     # Add flashcards
     words = ["Apple", "Banana", "Cherry"]
     for word in words:
-        await create_flashcard(deck=deck, owner=owner, front_word=word, session=session)
+        await flashcard_factory.create(deck=deck, owner=owner, front_word=word)
 
     # Test duplicate repository
     duplicates = await get_duplicate_repo().get_already_saved_front_words(
@@ -39,15 +38,19 @@ async def test_get_already_saved_front_words(session):
 
 
 @pytest.mark.asyncio
-async def test_get_random_front_word_initial_letters(session):
+async def test_get_random_front_word_initial_letters(
+    owner_factory: OwnerFactory,
+    deck_factory: FlashcardDeckFactory,
+    flashcard_factory: FlashcardFactory,
+):
     # Create deck
-    owner: Owner = await create_user_owner(session)
-    deck: FlashcardDecks = await create_flashcard_deck(session, owner=owner)
+    owner: Owner = await owner_factory.create_user_owner()
+    deck: FlashcardDecks = await deck_factory.create(owner=owner)
 
     # Add flashcards
     words = ["Apple", "Banana", "Avocado", "Cherry"]
     for word in words:
-        await create_flashcard(deck=deck, owner=owner, front_word=word, session=session)
+        await flashcard_factory.create(deck=deck, owner=owner, front_word=word)
 
     # Test random initial letters
     letters = await get_duplicate_repo().get_random_front_word_initial_letters(

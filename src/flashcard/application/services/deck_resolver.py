@@ -21,17 +21,15 @@ class DeckResolver:
         existing_deck = await self.repository.search_by_name(user_id, name, front_lang, back_lang)
 
         if existing_deck:
-            return ResolvedDeck(existing_deck=True, deck=existing_deck)
+            return ResolvedDeck(is_existing_deck=True, deck=existing_deck)
 
         deck = Deck(
-            owner=Owner.from_user(user_id),
-            name_lower=name.lower(),
-            name_original=name,
-            level=level,
+            owner=Owner.from_user(user_id), tag=name, name=name, default_language_level=level
         )
-        deck = await self.repository.create(deck)
+        deck_id = await self.repository.create(deck)
+        deck.id = deck_id
 
-        return ResolvedDeck(existing_deck=False, deck=deck)
+        return ResolvedDeck(is_existing_deck=False, deck=deck)
 
     async def resolve_by_id(self, deck_id: str) -> ResolvedDeck:
         deck = await self.repository.find_by_id(deck_id)

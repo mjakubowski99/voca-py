@@ -70,7 +70,7 @@ class StoryRepository(IStoryRepository):
         Inserts multiple stories and their story_flashcards.
         """
         session: AsyncSession = get_session()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
 
         # Insert stories
         insert_data = [{"created_at": now, "updated_at": now} for _ in stories.get()]
@@ -80,7 +80,7 @@ class StoryRepository(IStoryRepository):
 
         # Assign story_ids to story flashcards
         for story, story_id in zip(stories.get(), story_ids):
-            for sf in story.get_story_flashcards():
+            for sf in story.flashcards:
                 sf.story_id = story_id
 
         # Use mapper to prepare story flashcards
