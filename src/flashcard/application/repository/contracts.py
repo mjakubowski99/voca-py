@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from core.models import SmTwoFlashcards
+from src.flashcard.domain.models.sm_two_flashcards import SmTwoFlashcards
 from src.flashcard.application.dto.deck_details_read import DeckDetailsRead
 from src.flashcard.application.dto.owner_deck_read import OwnerDeckRead
 from src.flashcard.domain.models.deck import Deck
@@ -9,18 +9,14 @@ from src.flashcard.domain.value_objects import FlashcardDeckId
 from typing import List, Optional
 from src.flashcard.domain.models.story import Story
 from src.flashcard.domain.models.story_collection import StoryCollection
-from src.flashcard.domain.value_objects import StoryId, FlashcardId
+from src.flashcard.domain.value_objects import FlashcardId
+from src.shared.value_objects.story_id import StoryId
 from src.shared.enum import LanguageLevel
 from src.shared.value_objects.user_id import UserId
 from src.shared.value_objects.language import Language
 from src.shared.enum import Language as LanguageEnum
 from src.flashcard.domain.models.flashcard import Flashcard
 from enum import Enum
-from src.flashcard.domain.models.next_session_flashcards import NextSessionFlashcards
-from src.flashcard.domain.value_objects import SessionId
-from src.shared.enum import SessionStatus
-from src.flashcard.domain.models.learning_session import LearningSession
-from src.flashcard.domain.models.rateable_session_flashcards import RateableSessionFlashcards
 
 
 class IFlashcardDeckRepository(ABC):
@@ -251,74 +247,6 @@ class ISmTwoFlashcardRepository(ABC):
         back: Language,
         deck_id: FlashcardDeckId,
     ) -> List[Flashcard]: ...
-
-
-class ISessionRepository(ABC):
-    @abstractmethod
-    async def update_status_by_id(
-        self, session_ids: List[SessionId], status: SessionStatus
-    ) -> None:
-        """Update the status of multiple sessions by their IDs."""
-        pass
-
-    @abstractmethod
-    async def set_all_owner_sessions_status(self, user_id: UserId, status: SessionStatus) -> None:
-        """Set the status for all sessions belonging to a specific user."""
-        pass
-
-    @abstractmethod
-    async def create(self, session: LearningSession) -> SessionId:
-        """Create a new session and return its SessionId."""
-        pass
-
-    @abstractmethod
-    async def update(self, session: LearningSession) -> None:
-        """Update an existing session."""
-        pass
-
-    @abstractmethod
-    async def find(self, session_id: SessionId) -> LearningSession:
-        """Find and return a session by its ID."""
-        pass
-
-    @abstractmethod
-    async def delete_all_for_user(self, user_id: UserId) -> None:
-        """Delete all sessions for a given user."""
-        pass
-
-    @abstractmethod
-    async def has_any_session(self, user_id: UserId) -> bool:
-        """Return True if the user has at least one session."""
-        pass
-
-
-class INextSessionFlashcardsRepository(ABC):
-    @abstractmethod
-    async def find(self, session_id: SessionId) -> NextSessionFlashcards:
-        """Retrieve NextSessionFlashcards by session ID."""
-        pass
-
-    @abstractmethod
-    async def save(self, next_session_flashcards: NextSessionFlashcards) -> None:
-        """Persist NextSessionFlashcards."""
-        pass
-
-
-class IRateableSessionFlashcardsRepository(ABC):
-    @abstractmethod
-    async def find(self, session_id: SessionId) -> RateableSessionFlashcards:
-        """
-        Finds and returns a RateableSessionFlashcards object for the given session ID.
-        Raises an exception if the session does not exist.
-        """
-        pass
-
-    @abstractmethod
-    async def save(self, flashcards: RateableSessionFlashcards) -> None:
-        """
-        Saves the RateableSessionFlashcards object to the database.
-        """
-        pass
 
 
 class IFlashcardPollRepository(ABC):

@@ -10,7 +10,7 @@ from src.flashcard.domain.value_objects import FlashcardId, FlashcardDeckId
 from src.shared.value_objects.user_id import UserId
 from src.shared.value_objects.language import Language
 from src.shared.enum import LanguageLevel
-from src.flashcard.domain.models.emoji import Emoji
+from src.shared.models import Emoji
 from src.flashcard.domain.models.story_collection import StoryCollection
 from core.db import get_session
 

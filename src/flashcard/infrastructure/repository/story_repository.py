@@ -4,7 +4,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.flashcard.application.repository.contracts import IStoryRepository
 from src.flashcard.domain.models.story import Story, StoryFlashcard
 from src.flashcard.domain.models.story_collection import StoryCollection
-from src.flashcard.domain.value_objects import StoryId, FlashcardId
+from src.flashcard.domain.value_objects import FlashcardId
+from src.shared.value_objects.story_id import StoryId
 from src.flashcard.infrastructure.repository.flashcard_repository import FlashcardRepository
 from core.models import StoryFlashcards, Stories
 from core.db import get_session

@@ -45,7 +45,3 @@ class SessionId(IntegerId):
 
 class SessionFlashcardId(IntegerId):
     pass
-
-
-class StoryId(IntegerId):
-    pass

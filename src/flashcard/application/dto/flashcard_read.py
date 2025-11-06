@@ -5,7 +5,7 @@ from src.flashcard.domain.value_objects import FlashcardId
 from src.shared.value_objects.language import Language
 from src.shared.enum import LanguageLevel
 from src.flashcard.domain.enum import FlashcardOwnerType
-from src.flashcard.domain.models.emoji import Emoji
+from src.shared.models import Emoji
 
 
 # Flashcard DTO

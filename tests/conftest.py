@@ -18,8 +18,11 @@ from src.shared.util.hash import IHash
 from core.container import container
 from tests.client import HttpClient
 from tests.factory import (
+    ExerciseEntryFactory,
+    ExerciseFactory,
     FlashcardPollItemFactory,
     SmTwoFlashcardsFactory,
+    UnscrambleWordExerciseFactory,
     UserFactory,
     AdminFactory,
     OwnerFactory,
@@ -178,3 +181,20 @@ def sm_two_factory(session) -> SmTwoFlashcardsFactory:
 @pytest.fixture
 def flashcard_poll_factory(session) -> FlashcardPollItemFactory:
     return FlashcardPollItemFactory(session)
+
+
+@pytest.fixture
+def exercise_factory(session) -> ExerciseFactory:
+    return ExerciseFactory(session)
+
+
+@pytest.fixture
+def exercise_entry_factory(session) -> ExerciseEntryFactory:
+    return ExerciseEntryFactory(session)
+
+
+@pytest.fixture
+def unscramble_word_exercise_factory(
+    session, exercise_factory, exercise_entry_factory
+) -> UnscrambleWordExerciseFactory:
+    return UnscrambleWordExerciseFactory(session, exercise_factory, exercise_entry_factory)

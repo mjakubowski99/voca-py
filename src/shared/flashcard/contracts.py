@@ -1,20 +1,56 @@
 from abc import ABC, abstractmethod
+from typing import Optional
+
+from src.flashcard.domain.value_objects import FlashcardDeckId, FlashcardId
 from src.shared.models import Emoji
 from src.shared.value_objects.language import Language
-from typing import List, Optional
+from src.shared.user.iuser import IUser
+from src.study.domain.enum import Rating
 
-from src.shared.value_objects.story_id import StoryId
 
-
-class IAnswerOption(ABC):
+class IRatingContext(ABC):
     @abstractmethod
-    def getOption() -> str:
+    def get_user(self) -> IUser:
+        pass
+
+    @abstractmethod
+    def get_flashcard_id(self) -> FlashcardId:
+        pass
+
+    @abstractmethod
+    def get_rating(self) -> Rating:
         pass
 
 
-class ISessionFlashcardSummary(ABC):
+class IPickingContext(ABC):
+    """Kontekst używany przy wyborze fiszki."""
+
     @abstractmethod
-    def get_flashcard_id(self) -> int:
+    def get_user(self) -> IUser:
+        """Zwraca identyfikator użytkownika."""
+        pass
+
+    @abstractmethod
+    def get_flashcard_deck_id(self) -> Optional[FlashcardDeckId]:
+        """Zwraca opcjonalne ID talii fiszek."""
+        pass
+
+    @abstractmethod
+    def get_max_flashcards_count(self) -> int:
+        """Zwraca opcjonalne ID talii fiszek."""
+        pass
+
+    @abstractmethod
+    def get_current_count(self) -> int:
+        """Zwraca opcjonalne ID talii fiszek."""
+        pass
+
+
+class IFlashcard(ABC):
+    """Interfejs reprezentujący pojedynczą fiszkę."""
+
+    @abstractmethod
+    def get_flashcard_id(self) -> FlashcardId:
         pass
 
     @abstractmethod
@@ -58,23 +94,19 @@ class ISessionFlashcardSummary(ABC):
         pass
 
 
-class ISessionFlashcardSummaries(ABC):
+class IFlashcardFacade(ABC):
+    """Interfejs fasady do zarządzania fiszkami."""
+
     @abstractmethod
-    def has_story(self) -> bool:
-        """Returns True if a story is associated with this set of summaries."""
+    async def get_flashcard(self, id: FlashcardId) -> IFlashcard:
+        """Wybiera odpowiednią fiszkę na podstawie kontekstu."""
         pass
 
     @abstractmethod
-    def get_story_id(self) -> Optional[StoryId]:
-        """Returns the story ID, or None if no story is associated."""
+    async def pick_flashcard(self, context: IPickingContext) -> IFlashcard:
+        """Wybiera odpowiednią fiszkę na podstawie kontekstu."""
         pass
 
     @abstractmethod
-    def get_summaries(self) -> List[ISessionFlashcardSummary]:
-        """Returns a list of flashcard summaries."""
-        pass
-
-    @abstractmethod
-    def get_answer_options(self) -> List[IAnswerOption]:
-        """Returns a list of answer options."""
+    async def new_rating(self, flashcard_id: FlashcardId, rating: Rating):
         pass

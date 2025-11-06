@@ -1,5 +1,8 @@
 import punq
 
+from src.study.infrastructure.repository.unscramble_word_exercise_repository import (
+    UnscrambleWordExerciseRepository,
+)
 from src.flashcard.application.command.generate_flashcards import GenerateFlashcardsHandler
 from src.flashcard.application.query.get_deck_details import GetDeckDetails
 from src.flashcard.application.query.get_decks_list import GetAdminDecks, GetUserDecks
@@ -104,3 +107,6 @@ container.register(GetOAuthUser)
 container.register(IUserRepository, UserRepository)
 container.register(IUserFacade, UserFacade)
 container.register(ITokenRepository, instance=JwtTokenRepository(secret_key=settings.jwt_secret))
+
+container.register(GenerateFlashcardsHandler)
+container.register(UnscrambleWordExerciseRepository)

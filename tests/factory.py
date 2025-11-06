@@ -5,13 +5,17 @@ import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.models import (
+    ExerciseEntries,
+    Exercises,
     FlashcardPollItems,
     SmTwoFlashcards,
+    UnscrambleWordExercises,
     Users,
     Admins,
     FlashcardDecks,
     Flashcards,
 )
+from src.study.domain.enum import ExerciseStatus, ExerciseType
 from src.flashcard.domain.models.owner import Owner
 from src.flashcard.domain.enum import FlashcardOwnerType
 from src.flashcard.domain.value_objects import OwnerId
@@ -188,3 +192,133 @@ class SmTwoFlashcardsFactory:
         await self.session.refresh(sm_two)
         await self.session.commit()
         return sm_two
+
+
+class ExerciseFactory:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def create(
+        self,
+        user_id: uuid.UUID,
+        exercise_type: ExerciseType = ExerciseType.UNSCRAMBLE_WORDS,
+        status: ExerciseStatus = ExerciseStatus.NEW,
+        properties: dict | None = None,
+    ) -> Exercises:
+        exercise = Exercises(
+            user_id=user_id,
+            exercise_type=exercise_type.to_number(),
+            status=status.value,
+            properties=properties,
+        )
+        self.session.add(exercise)
+        await self.session.flush()
+        await self.session.refresh(exercise)
+        await self.session.commit()
+        return exercise
+
+
+class ExerciseEntryFactory:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def create(
+        self,
+        exercise: Exercises,
+        correct_answer: str,
+        order: int = 0,
+        last_answer: str | None = None,
+        last_answer_correct: bool | None = None,
+        score: float = 0.0,
+        answers_count: int = 0,
+    ) -> ExerciseEntries:
+        entry = ExerciseEntries(
+            exercise_id=exercise.id,
+            correct_answer=correct_answer,
+            score=score,
+            answers_count=answers_count,
+            order=order,
+            last_answer=last_answer,
+            last_answer_correct=last_answer_correct,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
+        )
+        self.session.add(entry)
+        await self.session.flush()
+        await self.session.refresh(entry)
+        await self.session.commit()
+        return entry
+
+
+class UnscrambleWordExerciseFactory:
+    def __init__(
+        self,
+        session: AsyncSession,
+        exercise_factory: ExerciseFactory,
+        entry_factory: ExerciseEntryFactory,
+    ):
+        self.session = session
+        self.exercise_factory = exercise_factory
+        self.entry_factory = entry_factory
+
+    async def build(
+        self,
+        user_id: uuid.UUID,
+        word: str = "banana",
+        scrambled_word: str | None = None,
+        context_sentence: str = "I ate a banana today.",
+        word_translation: str = "banan",
+        context_sentence_translation: str | None = "Zjadłem dziś banana.",
+        emoji: str | None = "🍌",
+        status: ExerciseStatus = ExerciseStatus.NEW,
+    ) -> UnscrambleWordExercises:
+        scrambled = scrambled_word or "".join(sorted(word))
+        exercise = await self.exercise_factory.create(
+            user_id, ExerciseType.UNSCRAMBLE_WORDS, status, properties={"flashcard_id": 0}
+        )
+
+        entry = await self.entry_factory.create(
+            exercise=exercise,
+            correct_answer=word,
+            order=0,
+        )
+
+        unscramble = UnscrambleWordExercises(
+            exercise_id=exercise.id,
+            word=word,
+            scrambled_word=scrambled,
+            context_sentence=context_sentence,
+            word_translation=word_translation,
+            context_sentence_translation=context_sentence_translation,
+            emoji=emoji,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
+        )
+        self.session.add(unscramble)
+        await self.session.flush()
+        await self.session.refresh(unscramble)
+        await self.session.commit()
+        return unscramble
+
+    async def create(
+        self,
+        user_id: uuid.UUID,
+        word: str = "banana",
+        scrambled_word: str | None = None,
+        context_sentence: str = "I ate a banana today.",
+        word_translation: str = "banan",
+        context_sentence_translation: str | None = "Zjadłem dziś banana.",
+        emoji: str | None = "🍌",
+        status: ExerciseStatus = ExerciseStatus.NEW,
+    ) -> UnscrambleWordExercises:
+        """Create and persist an UnscrambleWordExercise in the DB (for integration tests)."""
+        return await self.build(
+            user_id=user_id,
+            word=word,
+            scrambled_word=scrambled_word,
+            context_sentence=context_sentence,
+            word_translation=word_translation,
+            context_sentence_translation=context_sentence_translation,
+            emoji=emoji,
+            status=status,
+        )

@@ -34,7 +34,7 @@ from src.flashcard.domain.models.flashcard import Flashcard
 from src.flashcard.domain.value_objects import FlashcardDeckId
 from src.shared.enum import LanguageLevel, Language
 from src.shared.value_objects.language import Language as LanguageVO
-from src.flashcard.domain.models.emoji import Emoji
+from src.shared.models import Emoji
 from decimal import Decimal
 
 

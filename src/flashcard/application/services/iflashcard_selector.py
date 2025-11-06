@@ -2,8 +2,8 @@ from abc import ABC, abstractmethod
 from typing import List
 from src.shared.enum import Language
 from src.shared.value_objects.user_id import UserId
-from flashcard.domain.models.flashcard import Flashcard
-from flashcard.domain.models.next_session_flashcards import NextSessionFlashcards
+from src.flashcard.domain.models.flashcard import Flashcard
+from src.flashcard.application.dto.context import Context
 
 
 class IFlashcardSelector(ABC):
@@ -27,7 +27,7 @@ class IFlashcardSelector(ABC):
     @abstractmethod
     async def select(
         self,
-        next_session_flashcards: NextSessionFlashcards,
+        context: Context,
         limit: int,
         front: Language,
         back: Language,
@@ -39,7 +39,7 @@ class IFlashcardSelector(ABC):
     @abstractmethod
     async def select_from_poll(
         self,
-        next_session_flashcards: NextSessionFlashcards,
+        context: Context,
         limit: int,
         front: Language,
         back: Language,

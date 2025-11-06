@@ -1,6 +1,6 @@
 from src.flashcard.domain.enum import Rating
 from src.flashcard.domain.models.deck import Deck
-from src.flashcard.domain.models.emoji import Emoji
+from src.shared.models import Emoji
 from src.flashcard.domain.models.owner import Owner
 from src.flashcard.domain.value_objects import FlashcardId
 from src.shared.enum import LanguageLevel

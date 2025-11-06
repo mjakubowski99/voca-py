@@ -7,13 +7,15 @@ from google.genai import Client
 from src.flashcard.application.services.iflashcard_generator import IFlashcardGenerator
 from src.flashcard.domain.models.deck import Deck
 from src.flashcard.domain.models.owner import Owner
-from src.flashcard.domain.models.emoji import Emoji
+from src.shared.models import Emoji
 from src.flashcard.domain.models.flashcard_prompt import FlashcardPrompt
 from src.flashcard.domain.models.flashcard import Flashcard
 from src.flashcard.domain.models.story import Story
 from src.flashcard.domain.models.story_collection import StoryCollection
 from src.flashcard.domain.models.story_flashcard import StoryFlashcard
-from src.flashcard.domain.value_objects import FlashcardId, StoryId
+from src.flashcard.domain.value_objects import FlashcardId
+from src.shared.value_objects.story_id import StoryId
+
 from config import settings
 
 

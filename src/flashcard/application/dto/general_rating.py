@@ -1,6 +1,6 @@
 from typing import Optional, ClassVar
 from pydantic import BaseModel
-from src.flashcard.domain.enum import Rating, GeneralRatingType
+from src.flashcard.domain.enum import GeneralRatingType, Rating
 
 
 # GeneralRating class

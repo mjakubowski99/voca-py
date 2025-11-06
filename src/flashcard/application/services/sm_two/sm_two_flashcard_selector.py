@@ -1,8 +1,8 @@
 from typing import List
+from src.flashcard.application.dto.context import Context
 from src.shared.enum import Language
 from src.shared.value_objects.user_id import UserId
 from flashcard.domain.models.flashcard import Flashcard
-from flashcard.domain.models.next_session_flashcards import NextSessionFlashcards
 from src.flashcard.application.repository.contracts import ISmTwoFlashcardRepository
 from src.flashcard.application.repository.contracts import IFlashcardRepository
 from src.flashcard.application.repository.contracts import IFlashcardPollRepository
@@ -56,7 +56,7 @@ class SmTwoFlashcardSelector(IFlashcardSelector):
 
     async def select(
         self,
-        next_session_flashcards: NextSessionFlashcards,
+        context: Context,
         limit: int,
         front: Language,
         back: Language,
@@ -64,32 +64,28 @@ class SmTwoFlashcardSelector(IFlashcardSelector):
     ) -> List[Flashcard]:
         flashcards: List[Flashcard] = []
 
-        if next_session_flashcards.has_flashcard_poll():
+        if context.has_flashcard_poll:
             flashcards = await self.select_from_poll(
-                next_session_flashcards, limit, front, back, exclude_flashcard_ids
+                context, limit, front, back, exclude_flashcard_ids
             )
-        elif next_session_flashcards.has_deck():
-            return await self._select_from_deck(
-                next_session_flashcards, limit, front, back, exclude_flashcard_ids
-            )
+        elif context.has_deck:
+            return await self._select_from_deck(context, limit, front, back, exclude_flashcard_ids)
 
         if not flashcards:
-            return await self._select_from_all(
-                next_session_flashcards, limit, front, back, exclude_flashcard_ids
-            )
+            return await self._select_from_all(context, limit, front, back, exclude_flashcard_ids)
 
         return flashcards
 
     async def select_from_poll(
         self,
-        next_session_flashcards: NextSessionFlashcards,
+        context: Context,
         limit: int,
         front: Language,
         back: Language,
         exclude_flashcard_ids: List[int] = [],
     ) -> List[Flashcard]:
         flashcard_ids = await self.pool_repository.select_next_leitner_flashcard(
-            next_session_flashcards.get_user_id(),
+            context.user_id,
             exclude_flashcard_ids,
             limit,
         )
@@ -97,32 +93,24 @@ class SmTwoFlashcardSelector(IFlashcardSelector):
 
     async def _select_from_all(
         self,
-        next_session_flashcards: NextSessionFlashcards,
+        context: Context,
         limit: int,
         front: Language,
         back: Language,
         exclude_flashcard_ids: List[int] = [],
     ) -> List[Flashcard]:
-        latest_limit = max(3, int(next_session_flashcards.get_max_flashcards_count() * 0.2))
+        latest_limit = max(3, int(context.max_flashcards_count * 0.2))
         latest_limit = min(5, latest_limit)
-        prioritize_not_hard = (
-            next_session_flashcards.get_current_session_flashcards_count() % 5 == 0
-        )
-
-        latest_ids = await self.flashcard_repository.get_latest_session_flashcard_ids(
-            next_session_flashcards.get_session_id(),
-            latest_limit,
-        )
-        exclude_flashcard_ids = list(set(exclude_flashcard_ids + latest_ids))
+        prioritize_not_hard = context.current_session_flashcards_count % 5 == 0
 
         criteria = FlashcardSortCriteria.default_criteria(prioritize_not_hard)
 
         results = await self.repository.get_next_flashcards_by_user(
-            next_session_flashcards.get_user_id(),
+            context.user_id,
             limit,
             exclude_flashcard_ids,
             criteria,
-            next_session_flashcards.get_max_flashcards_count(),
+            context.max_flashcards_count,
             from_poll=False,
             exclude_from_poll=False,
             front=front,
@@ -131,11 +119,11 @@ class SmTwoFlashcardSelector(IFlashcardSelector):
 
         if len(results) < limit:
             return await self.repository.get_next_flashcards_by_user(
-                next_session_flashcards.get_user_id(),
+                context.user_id,
                 limit,
                 [],
                 criteria,
-                next_session_flashcards.get_max_flashcards_count(),
+                context.max_flashcards_count,
                 from_poll=False,
                 exclude_from_poll=False,
                 front=front,
@@ -146,34 +134,31 @@ class SmTwoFlashcardSelector(IFlashcardSelector):
 
     async def _select_from_deck(
         self,
-        next_session_flashcards: NextSessionFlashcards,
+        context: Context,
         limit: int,
         front: Language,
         back: Language,
         exclude_flashcard_ids: List[int] = [],
     ) -> List[Flashcard]:
-        latest_limit = max(3, int(next_session_flashcards.get_max_flashcards_count() * 0.2))
+        latest_limit = max(3, int(context.max_flashcards_count * 0.2))
         latest_limit = min(5, latest_limit)
-        prioritize_not_hard = (
-            next_session_flashcards.get_current_session_flashcards_count() % 5 == 0
-        )
+        prioritize_not_hard = context.current_session_flashcards_count % 5 == 0
 
         latest_ids = await self.flashcard_repository.get_latest_session_flashcard_ids(
-            next_session_flashcards.get_session_id(),
+            context.session_id,
             latest_limit,
         )
         exclude_flashcard_ids = list(set(exclude_flashcard_ids + latest_ids))
 
-        deck = next_session_flashcards.get_deck()
         criteria = FlashcardSortCriteria.deck_criteria(prioritize_not_hard)
 
         results = await self.repository.get_next_flashcards_by_deck(
-            next_session_flashcards.get_user_id(),
-            deck.get_id(),
+            context.user_id,
+            context.deck_id,
             limit,
             exclude_flashcard_ids,
             criteria,
-            next_session_flashcards.get_max_flashcards_count(),
+            context.max_flashcards_count,
             from_poll=False,
             front=front,
             back=back,
@@ -181,12 +166,12 @@ class SmTwoFlashcardSelector(IFlashcardSelector):
 
         if len(results) < limit:
             return await self.repository.get_next_flashcards_by_deck(
-                next_session_flashcards.get_user_id(),
-                deck.get_id(),
+                context.user_id,
+                context.deck_id,
                 limit,
                 [],
                 criteria,
-                next_session_flashcards.get_max_flashcards_count(),
+                context.max_flashcards_count,
                 from_poll=False,
                 front=front,
                 back=back,

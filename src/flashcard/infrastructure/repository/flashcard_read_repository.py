@@ -2,7 +2,7 @@ from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from sqlalchemy.sql import text
-from src.flashcard.domain.models.emoji import Emoji
+from src.shared.models import Emoji
 from src.flashcard.domain.enum import FlashcardOwnerType, GeneralRatingType
 from src.flashcard.domain.value_objects import FlashcardId, FlashcardDeckId
 from src.flashcard.application.dto.flashcard_read import FlashcardRead
