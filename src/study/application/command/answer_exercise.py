@@ -39,11 +39,13 @@ class AnswerExercise:
     async def handle_word_match(
         self, user: IUser, exercise_id: ExerciseId, exercise_entry_id: ExerciseEntryId, answer: str
     ):
-        exercise = await self.unscramble_repository.find(exercise_id)
+        exercise = await self.word_match_repository.find(exercise_id)
 
         exercise.assess_answer(
             answer=WordMatchAnswer(answer_entry_id=exercise_entry_id, word=answer, hints_count=0)
         )
+
+        await self.word_match_repository.save(exercise)
 
         await self._save_ratings(user, exercise)
 

@@ -25,6 +25,7 @@ from tests.factory import (
     LearningSessionFlashcardFactory,
     SmTwoFlashcardsFactory,
     UnscrambleWordExerciseFactory,
+    WordMatchExerciseFactory,
     UserFactory,
     AdminFactory,
     OwnerFactory,
@@ -200,6 +201,13 @@ def unscramble_word_exercise_factory(
     session, exercise_factory, exercise_entry_factory
 ) -> UnscrambleWordExerciseFactory:
     return UnscrambleWordExerciseFactory(session, exercise_factory, exercise_entry_factory)
+
+
+@pytest.fixture
+def word_match_exercise_factory(
+    session, exercise_factory, exercise_entry_factory
+) -> WordMatchExerciseFactory:
+    return WordMatchExerciseFactory(session, exercise_factory, exercise_entry_factory)
 
 
 @pytest.fixture

@@ -1,6 +1,5 @@
 # tests/factories.py
 from datetime import datetime, timezone
-from optparse import Option
 from typing import Optional
 import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -304,7 +303,7 @@ class UnscrambleWordExerciseFactory:
             properties={"flashcard_id": flashcard_id.get_value() if flashcard_id else None},
         )
 
-        entry = await self.entry_factory.create(
+        await self.entry_factory.create(
             exercise=exercise,
             correct_answer=word_translation,
             order=0,
@@ -350,6 +349,85 @@ class UnscrambleWordExerciseFactory:
             emoji=emoji,
             status=status,
             flashcard_id=flashcard_id,
+        )
+
+
+class WordMatchExerciseFactory:
+    def __init__(
+        self,
+        session: AsyncSession,
+        exercise_factory: ExerciseFactory,
+        entry_factory: ExerciseEntryFactory,
+    ):
+        self.session = session
+        self.exercise_factory = exercise_factory
+        self.entry_factory = entry_factory
+
+    async def build(
+        self,
+        user_id: uuid.UUID,
+        word: str = "dog",
+        word_translation: str = "perro",
+        sentence: str = "The dog is barking.",
+        flashcard_id: Optional[FlashcardId] = None,
+        options: list[str] | None = None,
+        story_id: Optional[int] = None,
+        status: ExerciseStatus = ExerciseStatus.NEW,
+    ) -> Exercises:
+        if options is None:
+            options = ["dog", "cat", "bird"]
+        if flashcard_id is None:
+            flashcard_id = FlashcardId(1)
+
+        exercise = await self.exercise_factory.create(
+            user_id,
+            ExerciseType.WORD_MATCH,
+            status,
+            properties={
+                "story_id": story_id,
+                "sentences": [
+                    {
+                        "order": 0,
+                        "flashcard_id": flashcard_id.value if flashcard_id else 1,
+                        "sentence": sentence,
+                        "word": word,
+                        "translation": word_translation,
+                    }
+                ],
+                "answer_options": options,
+            },
+        )
+
+        await self.entry_factory.create(
+            exercise=exercise,
+            correct_answer=word,
+            order=0,
+        )
+
+        await self.session.refresh(exercise)
+        return exercise
+
+    async def create(
+        self,
+        user_id: uuid.UUID,
+        word: str = "dog",
+        word_translation: str = "perro",
+        sentence: str = "The dog is barking.",
+        flashcard_id: Optional[FlashcardId] = None,
+        options: list[str] | None = None,
+        story_id: Optional[int] = None,
+        status: ExerciseStatus = ExerciseStatus.NEW,
+    ) -> Exercises:
+        """Create and persist a WordMatchExercise in the DB (for integration tests)."""
+        return await self.build(
+            user_id=user_id,
+            word=word,
+            word_translation=word_translation,
+            sentence=sentence,
+            flashcard_id=flashcard_id,
+            options=options,
+            story_id=story_id,
+            status=status,
         )
 
 
