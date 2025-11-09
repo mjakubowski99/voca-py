@@ -18,7 +18,7 @@ def get_user_decks_query(
 
 def get_admin_decks_query(
     search: Optional[str] = Query(None, description="Optional search term"),
-    language_level: Optional[LanguageLevel] = Query(None, ge=1, description="LanguageLevel"),
+    language_level: Optional[LanguageLevel] = Query(None, description="LanguageLevel"),
     page: Optional[int] = Query(1, ge=1, description="Page number"),
     per_page: Optional[int] = Query(15, ge=1, le=100, description="Number per page"),
 ) -> GetAdminDecksRequest:

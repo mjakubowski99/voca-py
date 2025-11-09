@@ -1,3 +1,4 @@
+from decimal import Decimal
 from typing import Dict, List, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -371,7 +372,7 @@ class FlashcardDeckReadRepository(IFlashcardDeckReadRepository):
                 deck = row.FlashcardDecks
                 total_avg = rating_stats.get(deck.id, 0.0)
                 avg_rating = (
-                    (total_avg / (row.flashcards_count * Rating.max_rating()) * 100.0)
+                    (total_avg / (row.flashcards_count * Rating.max_rating()) * Decimal(100.0))
                     if row.flashcards_count
                     else 0.0
                 )
@@ -382,7 +383,7 @@ class FlashcardDeckReadRepository(IFlashcardDeckReadRepository):
                         language_level=row.most_frequent_language_level
                         or deck.default_language_level,
                         flashcards_count=row.flashcards_count or 0,
-                        rating_percentage=avg_rating,
+                        rating_percentage=float(avg_rating),
                         last_learnt_at=row.last_learnt_at,
                         owner_type=FlashcardOwnerType.USER,
                     )

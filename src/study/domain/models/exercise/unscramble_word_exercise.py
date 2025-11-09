@@ -1,23 +1,17 @@
+# optimize imports
 from __future__ import annotations
 import random
-from typing import Optional, List
-from pydantic import Field
+from typing import List, Optional
+from pydantic import model_validator
 
-from src.shared.value_objects import flashcard_id
 from src.shared.value_objects.flashcard_id import FlashcardId
-
-from .exercise import Exercise
-from src.study.domain.models.exercise_entry.exercise_entry import ExerciseEntry
-from src.study.domain.models.answer.unscramble_word_answer import UnscrambleWordAnswer
-from src.study.domain.enum import ExerciseStatus
-from src.study.domain.enum import ExerciseType
-from src.study.domain.value_objects import ExerciseId
-from src.study.domain.value_objects import ExerciseEntryId
 from src.shared.value_objects.user_id import UserId
 from src.shared.models import Emoji
-
-
-from pydantic import model_validator
+from src.study.domain.enum import ExerciseStatus, ExerciseType
+from src.study.domain.value_objects import ExerciseId, ExerciseEntryId
+from src.study.domain.models.exercise.exercise import Exercise
+from src.study.domain.models.exercise_entry.exercise_entry import ExerciseEntry
+from src.study.domain.models.answer.unscramble_word_answer import UnscrambleWordAnswer
 
 
 class UnscrambleWordExercise(Exercise):
@@ -37,7 +31,7 @@ class UnscrambleWordExercise(Exercise):
             # Extract values needed for entry creation
             answer_entry_id = data.get("answer_entry_id")
             exercise_id = data.get("id")
-            word = data.get("word")
+            word_translation = data.get("word_translation")
             last_answer = data.get("last_answer")
             last_answer_correct = data.get("last_answer_correct")
             score = data.get("score", 0.0)
@@ -50,7 +44,7 @@ class UnscrambleWordExercise(Exercise):
                 exercise_id=exercise_id,
                 flashcard_id=flashcard_id,
                 correct_answer=UnscrambleWordAnswer(
-                    answer_entry_id=answer_entry_id, unscrambled_word=word
+                    answer_entry_id=answer_entry_id, unscrambled_word=word_translation
                 ),
                 last_user_answer=last_answer,
                 last_answer_correct=last_answer_correct,
@@ -92,9 +86,9 @@ class UnscrambleWordExercise(Exercise):
         emoji: Optional[Emoji],
     ) -> "UnscrambleWordExercise":
         """Factory method for creating a new unscramble exercise."""
-        scrambled_word = cls.scramble(word)
+        scrambled_word = cls.scramble(word_translation)
         if scrambled_word == word:
-            scrambled_word = cls.scramble(word)
+            scrambled_word = cls.scramble(word_translation)
 
         return cls(
             id=ExerciseId.no_id(),
@@ -127,3 +121,11 @@ class UnscrambleWordExercise(Exercise):
 
     def get_scrambled_word(self) -> str:
         return self.scrambled_word
+
+    def get_keyboard(self) -> List[str]:
+        keyboard = list(self.scrambled_word)
+        random.shuffle(keyboard)
+        return keyboard
+
+    def get_indexed_keyboard(self) -> List[dict]:
+        return [{"c": c, "i": i} for i, c in enumerate(list(self.scrambled_word))]

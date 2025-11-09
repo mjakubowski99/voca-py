@@ -1,12 +1,12 @@
 from typing import Optional
 from pydantic import BaseModel, model_validator
 
-from src.flashcard.domain.value_objects import FlashcardId
+from src.shared.value_objects.flashcard_id import FlashcardId
 from src.shared.flashcard.contracts import IFlashcard
-from src.study.domain.enum import Rating
+from src.study.domain.enum import ExerciseType, Rating
 from src.study.domain.models.exercise.unscramble_word_exercise import UnscrambleWordExercise
 from src.study.domain.models.exercise.word_match_exercise import WordMatchExercise
-from src.study.domain.value_objects import LearningSessionStepId
+from src.study.domain.value_objects import ExerciseEntryId, LearningSessionStepId
 
 
 class LearningSessionStep(BaseModel):
@@ -30,11 +30,11 @@ class LearningSessionStep(BaseModel):
 
         if set_count == 0:
             raise ValueError(
-                "Musi być ustawione jedno z pól: flashcard, unscramble_word_exercise lub word_match."
+                "Must be set one of the fields: flashcard, unscramble_word_exercise or word_match."
             )
         if set_count > 1:
             raise ValueError(
-                "Tylko jedno z pól flashcard, unscramble_word_exercise, word_match może być ustawione."
+                "Only one of the fields: flashcard, unscramble_word_exercise, word_match can be set."
             )
         return self
 
@@ -44,3 +44,17 @@ class LearningSessionStep(BaseModel):
         if self.unscramble_word_exercise:
             return self.unscramble_word_exercise.exercise_entries[0].flashcard_id
         raise Exception("Unknown flashcard type")
+
+    def get_exercise_type(self) -> Optional[ExerciseType]:
+        if self.flashcard_exercise:
+            return None
+        if self.unscramble_word_exercise:
+            return ExerciseType.UNSCRAMBLE_WORDS
+        raise Exception("Unknown exercise type")
+
+    def get_exercise_entry_id(self) -> Optional[ExerciseEntryId]:
+        if self.flashcard_exercise:
+            return None
+        if self.unscramble_word_exercise:
+            return self.unscramble_word_exercise.exercise_entries[0].id
+        raise Exception("Unknown exercise type")

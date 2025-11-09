@@ -7,16 +7,15 @@ from src.flashcard.domain.models.deck import Deck
 from src.flashcard.domain.models.story import Story
 from src.flashcard.domain.models.story_collection import StoryCollection
 from src.flashcard.domain.models.story_flashcard import StoryFlashcard
-from src.flashcard.domain.value_objects import FlashcardDeckId, FlashcardId, StoryId
+from src.flashcard.domain.value_objects import FlashcardDeckId, FlashcardId
+from src.shared.value_objects.story_id import StoryId
 from src.flashcard.infrastructure.repository.flashcard_repository import FlashcardRepository
 from src.flashcard.domain.models.flashcard import Flashcard
-from src.flashcard.domain.models.emoji import Emoji
+from src.shared.models import Emoji
 from src.shared.value_objects.language import Language
 from src.shared.enum import LanguageLevel
 from core.models import Flashcards
-from src.user.application.facades.user_facade import UserFacade
-from tests.conftest import owner_factory
-from tests.factory import FlashcardDeckFactory, OwnerFactory, UserFactory
+from tests.factory import FlashcardDeckFactory, OwnerFactory
 from core.container import container
 
 

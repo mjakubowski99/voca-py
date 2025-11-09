@@ -1,5 +1,6 @@
 # tests/factories.py
-from datetime import datetime
+from datetime import datetime, timezone
+from optparse import Option
 from typing import Optional
 import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,6 +9,8 @@ from core.models import (
     ExerciseEntries,
     Exercises,
     FlashcardPollItems,
+    LearningSessionFlashcards,
+    LearningSessions,
     SmTwoFlashcards,
     UnscrambleWordExercises,
     Users,
@@ -15,12 +18,18 @@ from core.models import (
     FlashcardDecks,
     Flashcards,
 )
-from src.study.domain.enum import ExerciseStatus, ExerciseType
+from src.shared.user.iuser import IUser
+from src.shared.value_objects.flashcard_id import FlashcardId
+from src.shared.value_objects.language import LanguageEnum
+from src.shared.value_objects.user_id import UserId
+from src.study.domain.enum import ExerciseStatus, ExerciseType, Rating, SessionStatus, SessionType
 from src.flashcard.domain.models.owner import Owner
 from src.flashcard.domain.enum import FlashcardOwnerType
 from src.flashcard.domain.value_objects import OwnerId
 from src.shared.util.hash import IHash
-from src.shared.enum import Language, LanguageLevel
+from src.shared.enum import LanguageLevel
+from src.shared.value_objects.language import Language
+from unittest.mock import Mock
 
 
 class UserFactory:
@@ -41,6 +50,20 @@ class UserFactory:
         await self.session.refresh(user)
         await self.session.commit()
         return user
+
+    async def create_auth_user(
+        self, email: str = "test@example.com", password: str = "secret"
+    ) -> IUser:
+        user = await self.create(email, password)
+        mock = Mock(spec=IUser)
+
+        mock.get_id.return_value = UserId(value=user.id)
+        mock.get_email.return_value = user.email
+        mock.get_name.return_value = user.name
+        mock.get_user_language.return_value = Language(user.user_language)
+        mock.get_learning_language.return_value = Language(user.learning_language)
+
+        return mock
 
 
 class AdminFactory:
@@ -115,8 +138,8 @@ class FlashcardFactory:
         back_word: str = "Default back",
         front_context: str = "Default context",
         back_context: str = "Default back context",
-        front_lang: Language = Language.PL,
-        back_lang: Language = Language.EN,
+        front_lang: LanguageEnum = LanguageEnum.PL,
+        back_lang: LanguageEnum = LanguageEnum.EN,
     ) -> Flashcards:
         flashcard = Flashcards(
             flashcard_deck_id=deck.id,
@@ -271,15 +294,19 @@ class UnscrambleWordExerciseFactory:
         context_sentence_translation: str | None = "Zjadłem dziś banana.",
         emoji: str | None = "🍌",
         status: ExerciseStatus = ExerciseStatus.NEW,
+        flashcard_id: Optional[FlashcardId] = None,
     ) -> UnscrambleWordExercises:
         scrambled = scrambled_word or "".join(sorted(word))
         exercise = await self.exercise_factory.create(
-            user_id, ExerciseType.UNSCRAMBLE_WORDS, status, properties={"flashcard_id": 0}
+            user_id,
+            ExerciseType.UNSCRAMBLE_WORDS,
+            status,
+            properties={"flashcard_id": flashcard_id.get_value() if flashcard_id else None},
         )
 
         entry = await self.entry_factory.create(
             exercise=exercise,
-            correct_answer=word,
+            correct_answer=word_translation,
             order=0,
         )
 
@@ -310,6 +337,7 @@ class UnscrambleWordExerciseFactory:
         context_sentence_translation: str | None = "Zjadłem dziś banana.",
         emoji: str | None = "🍌",
         status: ExerciseStatus = ExerciseStatus.NEW,
+        flashcard_id: FlashcardId = FlashcardId.no_id(),
     ) -> UnscrambleWordExercises:
         """Create and persist an UnscrambleWordExercise in the DB (for integration tests)."""
         return await self.build(
@@ -321,4 +349,87 @@ class UnscrambleWordExerciseFactory:
             context_sentence_translation=context_sentence_translation,
             emoji=emoji,
             status=status,
+            flashcard_id=flashcard_id,
         )
+
+
+class LearningSessionFactory:
+    def __init__(
+        self, session: AsyncSession, owner_factory: OwnerFactory, deck_factory: FlashcardDeckFactory
+    ):
+        self.session = session
+        self.owner_factory = owner_factory
+        self.deck_factory = deck_factory
+
+    async def create(
+        self,
+        user_id: uuid.UUID,
+        status: SessionStatus = SessionStatus.IN_PROGRESS,
+        type: SessionType = SessionType.FLASHCARD,
+        cards_per_session: int = 15,
+        device: str = "Device",
+        deck: Optional[FlashcardDecks] = None,
+    ):
+        if deck is None:
+            deck = self.deck_factory.create(
+                self.owner_factory.create_user_owner(), "Name", "Tag", LanguageLevel.B1
+            )
+
+        learning_session = LearningSessions(
+            user_id=user_id,
+            status=status.value,
+            type=type.value,
+            device=device,
+            cards_per_session=cards_per_session,
+        )
+
+        self.session.add(learning_session)
+        await self.session.flush()
+        await self.session.refresh(learning_session)
+        await self.session.commit()
+        return learning_session
+
+
+class LearningSessionFlashcardFactory:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def create(
+        self,
+        learning_session: Optional[LearningSessions] = None,
+        flashcard: Optional[Flashcards] = None,
+        is_additional: bool = False,
+        rating: Optional[Rating] = None,
+        exercise_entry_id: Optional[int] = None,
+        exercise_type: Optional[int] = None,
+    ) -> LearningSessionFlashcards:
+        if learning_session is None:
+            learning_session = await LearningSessionFactory(self.session).create(
+                user_id=uuid.uuid4(),
+                status=SessionStatus.IN_PROGRESS,
+                type=SessionType.FLASHCARD,
+                cards_per_session=10,
+            )
+
+        if flashcard is None:
+            flashcard = await FlashcardFactory(self.session).create()
+
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+
+        learning_session_flashcard = LearningSessionFlashcards(
+            learning_session_id=learning_session.id,
+            flashcard_id=flashcard.id,
+            is_additional=is_additional,
+            rating=rating.value if rating else None,
+            created_at=now,
+            updated_at=now,
+            exercise_entry_id=exercise_entry_id,
+            exercise_type=exercise_type,
+        )
+
+        self.session.add(learning_session_flashcard)
+        await self.session.flush()
+        await self.session.refresh(learning_session_flashcard)
+        await self.session.commit()
+
+        return learning_session_flashcard

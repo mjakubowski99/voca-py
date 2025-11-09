@@ -20,7 +20,7 @@ class SmTwoFlashcards(BaseModel):
 
         first_user_id = self.sm_two_flashcards[0].user_id
         for flashcard in self.sm_two_flashcards:
-            if not flashcard.user_id.equals(first_user_id):
+            if not flashcard.user_id.get_value() == first_user_id.get_value():
                 raise InvalidSmTwoFlashcardSetException(
                     "Not every flashcard in set has same user id"
                 )
@@ -42,7 +42,7 @@ class SmTwoFlashcards(BaseModel):
 
     def _search_key_by_user_flashcard(self, flashcard_id: FlashcardId) -> Optional[int]:
         for index, flashcard in enumerate(self.sm_two_flashcards):
-            if flashcard.flashcard_id.equals(flashcard_id):
+            if flashcard.flashcard_id.get_value() == flashcard_id.get_value():
                 return index
         return None
 

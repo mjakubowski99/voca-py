@@ -1,11 +1,8 @@
 from datetime import datetime, timezone
-import logging
 from typing import List, Optional
 
-from sqlalchemy import select, or_, func, text, update, insert
-from sqlalchemy.dialects import postgresql
+from sqlalchemy import select, or_, text, update, insert
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.sql import text
 
 from core.db import get_session
 from core.models import SmTwoFlashcards as SmTwoFlashcardsTable
@@ -62,7 +59,7 @@ class SmTwoFlashcardRepository(ISmTwoFlashcardRepository):
         result = await session.execute(query)
         rows = result.scalars().all()
         mapped = [self._map_sm_two(row) for row in rows]
-        return SmTwoFlashcards(mapped)
+        return SmTwoFlashcards(sm_two_flashcards=mapped)
 
     from decimal import Decimal
 
@@ -73,7 +70,7 @@ class SmTwoFlashcardRepository(ISmTwoFlashcardRepository):
         for flashcard in sm_two_flashcards.all():
             stmt = (
                 select(SmTwoFlashcardsTable)
-                .where(SmTwoFlashcardsTable.flashcard_id == flashcard.flashcard.id.value)
+                .where(SmTwoFlashcardsTable.flashcard_id == flashcard.flashcard_id.value)
                 .where(SmTwoFlashcardsTable.user_id == flashcard.user_id.value)
             )
             result = await session.execute(stmt)
@@ -86,14 +83,14 @@ class SmTwoFlashcardRepository(ISmTwoFlashcardRepository):
             if existing is None:
                 await session.execute(
                     insert(SmTwoFlashcardsTable).values(
-                        flashcard_id=flashcard.flashcard.id.value,
+                        flashcard_id=flashcard.flashcard_id.value,
                         user_id=flashcard.user_id.value,
                         repetition_ratio=repetition_ratio,
                         repetition_interval=repetition_interval,
                         repetition_count=flashcard.repetition_count,
                         min_rating=flashcard.min_rating,
                         repetitions_in_session=flashcard.repetitions_in_session,
-                        last_rating=flashcard.last_rating.value if flashcard.last_rating else None,
+                        last_rating=flashcard.rating.value if flashcard.rating else None,
                         created_at=now,
                         updated_at=now,
                     )
@@ -101,7 +98,7 @@ class SmTwoFlashcardRepository(ISmTwoFlashcardRepository):
             else:
                 await session.execute(
                     update(SmTwoFlashcardsTable)
-                    .where(SmTwoFlashcardsTable.flashcard_id == flashcard.flashcard.id.value)
+                    .where(SmTwoFlashcardsTable.flashcard_id == flashcard.flashcard_id.value)
                     .where(SmTwoFlashcardsTable.user_id == flashcard.user_id.value)
                     .values(
                         repetition_ratio=repetition_ratio,
@@ -109,7 +106,7 @@ class SmTwoFlashcardRepository(ISmTwoFlashcardRepository):
                         repetition_count=flashcard.repetition_count,
                         min_rating=flashcard.min_rating,
                         repetitions_in_session=flashcard.repetitions_in_session,
-                        last_rating=flashcard.last_rating.value if flashcard.last_rating else None,
+                        last_rating=flashcard.rating.value if flashcard.rating else None,
                         updated_at=now,
                     )
                 )
@@ -246,11 +243,11 @@ class SmTwoFlashcardRepository(ISmTwoFlashcardRepository):
     def _map_sm_two(self, row: SmTwoFlashcardsTable) -> SmTwoFlashcard:
         return SmTwoFlashcard(
             user_id=UserId(row.user_id),
-            flashcard=FlashcardId(row.flashcard_id),
+            flashcard_id=FlashcardId(row.flashcard_id),
             repetition_ratio=float(row.repetition_ratio),
             repetition_interval=float(row.repetition_interval),
             repetition_count=row.repetition_count,
             min_rating=row.min_rating,
             repetitions_in_session=row.repetitions_in_session,
-            last_rating=Rating(row.last_rating) if row.last_rating is not None else None,
+            rating=Rating(row.last_rating) if row.last_rating is not None else None,
         )

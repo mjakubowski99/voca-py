@@ -1,12 +1,7 @@
-from typing import Generator, List, Optional
-from pydantic import BaseModel, field_validator, validator, root_validator
-import hashlib
-from uuid import UUID
-from src.flashcard.domain.value_objects import FlashcardId, OwnerId, FlashcardDeckId
-from src.shared.value_objects.language import Language
+from pydantic import BaseModel
+from src.flashcard.domain.value_objects import OwnerId
+from src.shared.user.iuser import IUser
 from src.shared.value_objects.user_id import UserId
-from enum import Enum
-from src.shared.enum import LanguageLevel
 from src.flashcard.domain.enum import FlashcardOwnerType
 
 
@@ -17,6 +12,11 @@ class Owner(BaseModel):
     @classmethod
     def from_user(cls, user_id: UserId) -> "Owner":
         owner_id = OwnerId.from_string(str(user_id.value))
+        return cls(id=owner_id, flashcard_owner_type=FlashcardOwnerType.USER)
+
+    @classmethod
+    def from_auth_user(cls, user: IUser) -> "Owner":
+        owner_id = OwnerId.from_string(str(user.get_id().value))
         return cls(id=owner_id, flashcard_owner_type=FlashcardOwnerType.USER)
 
     def equals(self, owner: "Owner") -> bool:

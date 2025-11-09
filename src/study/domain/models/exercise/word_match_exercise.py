@@ -19,7 +19,7 @@ from src.shared.value_objects.story_id import StoryId
 class WordMatchExercise(Exercise):
     """Concrete exercise for word-match tasks."""
 
-    story_id: Optional[StoryId]
+    story_id: Optional[StoryId] = None
     word_match_entries: List[WordMatchExerciseEntry] = Field(default_factory=list)
     options: List[str] = Field(default_factory=list)
 

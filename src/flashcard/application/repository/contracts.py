@@ -216,6 +216,23 @@ class FlashcardSortCriteria(Enum):
     OLDER_THAN_FIFTEEN_SECONDS_AGO = "OLDER_THAN_THIRTY_SECONDS_AGO_FIRST"
     EVER_NOT_VERY_GOOD_FIRST = "EVER_NOT_VERY_GOOD_FIRST"
 
+    @staticmethod
+    def default_criteria(prioritize_not_hard: bool) -> List["FlashcardSortCriteria"]:
+        criteria = [
+            FlashcardSortCriteria.PLANNED_FLASHCARDS_FOR_CURRENT_DATE_FIRST,
+            FlashcardSortCriteria.OLDER_THAN_FIFTEEN_SECONDS_AGO,
+            FlashcardSortCriteria.HARD_FLASHCARDS_FIRST,
+            FlashcardSortCriteria.OLDEST_UPDATE_FLASHCARDS_FIRST,
+            FlashcardSortCriteria.HARD_FLASHCARDS_FIRST,
+            FlashcardSortCriteria.RANDOMIZE_LATEST_FLASHCARDS_ORDER,
+            FlashcardSortCriteria.OLDEST_UPDATE_FLASHCARDS_FIRST,
+        ]
+
+        if prioritize_not_hard:
+            criteria.append(FlashcardSortCriteria.NOT_HARD_FLASHCARDS_FIRST)
+
+        return criteria
+
 
 class ISmTwoFlashcardRepository(ABC):
     @abstractmethod

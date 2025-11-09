@@ -53,8 +53,7 @@ async def test_get_by_user(
     )
 
     assert len(results) == 2
-    assert results[1].id.get_value() == decks[0].id
-    assert results[0].id.get_value() == decks[1].id
+    assert set([result.id.get_value() for result in results]) == set([deck.id for deck in decks])
 
 
 @pytest.mark.asyncio

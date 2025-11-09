@@ -21,6 +21,8 @@ from tests.factory import (
     ExerciseEntryFactory,
     ExerciseFactory,
     FlashcardPollItemFactory,
+    LearningSessionFactory,
+    LearningSessionFlashcardFactory,
     SmTwoFlashcardsFactory,
     UnscrambleWordExerciseFactory,
     UserFactory,
@@ -198,3 +200,15 @@ def unscramble_word_exercise_factory(
     session, exercise_factory, exercise_entry_factory
 ) -> UnscrambleWordExerciseFactory:
     return UnscrambleWordExerciseFactory(session, exercise_factory, exercise_entry_factory)
+
+
+@pytest.fixture
+def learning_session_factory(
+    session, owner_factory: OwnerFactory, deck_factory: FlashcardDeckFactory
+) -> LearningSessionFactory:
+    return LearningSessionFactory(session, owner_factory=owner_factory, deck_factory=deck_factory)
+
+
+@pytest.fixture
+def learning_session_flashcard_factory(session) -> LearningSessionFlashcardFactory:
+    return LearningSessionFlashcardFactory(session)

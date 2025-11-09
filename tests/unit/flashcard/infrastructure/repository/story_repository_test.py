@@ -1,5 +1,4 @@
 import pytest
-from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -11,10 +10,12 @@ from src.flashcard.domain.models.story_flashcard import StoryFlashcard
 from src.flashcard.domain.models.story_collection import StoryCollection
 from src.flashcard.domain.models.flashcard import Flashcard
 from src.flashcard.domain.models.deck import Deck
-from src.flashcard.domain.models.emoji import Emoji
+from src.shared.models import Emoji
 from src.shared.value_objects.language import Language
 from src.shared.enum import LanguageLevel
-from src.flashcard.domain.value_objects import FlashcardDeckId, FlashcardId, StoryId
+from src.flashcard.domain.value_objects import FlashcardDeckId
+from src.flashcard.domain.value_objects import FlashcardId
+from src.shared.value_objects.story_id import StoryId
 from tests.factory import FlashcardDeckFactory, OwnerFactory
 
 

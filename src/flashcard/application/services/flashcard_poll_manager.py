@@ -29,7 +29,7 @@ class FlashcardPollManager:
                 front.get_enum(),
                 back.get_enum(),
             )
-            flashcard_ids = [f.get_id() for f in flashcards]
+            flashcard_ids = [f.get_flashcard_id() for f in flashcards]
             poll.push(flashcard_ids)
 
         elif poll.are_flashcards_to_purge():
@@ -40,7 +40,7 @@ class FlashcardPollManager:
                 front.get_enum(),
                 back.get_enum(),
             )
-            flashcard_ids = [f.get_id() for f in flashcards]
+            flashcard_ids = [f.get_flashcard_id() for f in flashcards]
             poll.replace_with_new(flashcard_ids)
 
         await self.repository.save(poll)

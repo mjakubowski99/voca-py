@@ -2,7 +2,7 @@ from typing import List
 from src.flashcard.application.dto.context import Context
 from src.shared.enum import Language
 from src.shared.value_objects.user_id import UserId
-from flashcard.domain.models.flashcard import Flashcard
+from src.flashcard.domain.models.flashcard import Flashcard
 from src.flashcard.application.repository.contracts import ISmTwoFlashcardRepository
 from src.flashcard.application.repository.contracts import IFlashcardRepository
 from src.flashcard.application.repository.contracts import IFlashcardPollRepository
@@ -42,12 +42,12 @@ class SmTwoFlashcardSelector(IFlashcardSelector):
             FlashcardSortCriteria.OLDEST_UPDATE_FLASHCARDS_FIRST,
         ]
 
-        return await self.repository.get_next_flashcards_by_user(
-            user_id,
-            limit,
-            exclude_flashcard_ids,
-            criteria,
-            limit,
+        return await self.repository.get_next_flashcards(
+            user_id=user_id,
+            limit=limit,
+            exclude_flashcard_ids=exclude_flashcard_ids,
+            sort_criteria=criteria,
+            cards_per_session=limit,
             from_poll=False,
             exclude_from_poll=True,
             front=front,
@@ -105,12 +105,12 @@ class SmTwoFlashcardSelector(IFlashcardSelector):
 
         criteria = FlashcardSortCriteria.default_criteria(prioritize_not_hard)
 
-        results = await self.repository.get_next_flashcards_by_user(
-            context.user_id,
-            limit,
-            exclude_flashcard_ids,
-            criteria,
-            context.max_flashcards_count,
+        results = await self.repository.get_next_flashcards(
+            user_id=context.user_id,
+            limit=limit,
+            exclude_flashcard_ids=exclude_flashcard_ids,
+            sort_criteria=criteria,
+            cards_per_session=context.max_flashcards_count,
             from_poll=False,
             exclude_from_poll=False,
             front=front,
@@ -118,12 +118,12 @@ class SmTwoFlashcardSelector(IFlashcardSelector):
         )
 
         if len(results) < limit:
-            return await self.repository.get_next_flashcards_by_user(
-                context.user_id,
-                limit,
-                [],
-                criteria,
-                context.max_flashcards_count,
+            return await self.repository.get_next_flashcards(
+                user_id=context.user_id,
+                limit=limit,
+                exclude_flashcard_ids=[],
+                sort_criteria=criteria,
+                cards_per_session=context.max_flashcards_count,
                 from_poll=False,
                 exclude_from_poll=False,
                 front=front,

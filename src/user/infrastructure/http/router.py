@@ -1,3 +1,4 @@
+from ast import List
 from fastapi import Depends, HTTPException
 from fastapi import Body
 from fastapi import APIRouter
@@ -16,7 +17,7 @@ from src.user.application.dto.user_dto import UserDTO
 from src.user.application.query.find_user import FindUserHandler
 from src.user.application.query.get_oauth_user import GetOAuthUser
 from src.user.infrastructure.http.requests import LoginRequest, OAuthLoginRequest
-from src.user.infrastructure.http.resources import TokenUserResource, UserResource
+from src.user.infrastructure.http.resources import LanguageResource, TokenUserResource, UserResource
 
 router = APIRouter()
 
@@ -117,14 +118,13 @@ async def oauth_login(
 
 
 @router.get("/api/v2/languages")
-async def get_languages() -> list[dict]:
-    print(Language.all())
-    languages = [
-        {
-            "code": lang.get_value(),
-            "flag": f"https://api.vocasmart.pl/assets/flags/{lang.get_value().lower()}.svg",
-        }
-        for lang in Language.all()
-    ]
-
-    return languages
+async def get_languages() -> ResponseWrapper[LanguageResource]:
+    return ResponseWrapper[LanguageResource](
+        data=[
+            LanguageResource(
+                code=lang.get_value(),
+                flag=f"https://api.vocasmart.pl/assets/flags/{lang.get_value().lower()}.svg",
+            )
+            for lang in Language.all()
+        ]
+    )

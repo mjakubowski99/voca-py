@@ -18,7 +18,7 @@ from src.flashcard.infrastructure.http.response import (
     FlashcardDecksResource,
 )
 from src.shared.user.iuser import IUser
-from core.container import container, resolve
+from core.container import resolve
 from src.flashcard.infrastructure.http.request import (
     GenerateFlashcards,
     GetAdminDecksRequest,

@@ -21,8 +21,10 @@ class ExerciseFactory:
         flashcard = await self.flashcard_facade.pick_flashcard(context)
 
         exercise = UnscrambleWordExercise.new_exercise(
-            user_id=context.user_id,
+            user_id=context.user.get_id(),
+            flashcard_id=flashcard.get_flashcard_id(),
             word=flashcard.get_front_word(),
+            word_translation=flashcard.get_back_word(),
             context_sentence=flashcard.get_front_context(),
             context_sentence_translation=flashcard.get_back_context(),
             emoji=flashcard.get_emoji(),

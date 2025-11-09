@@ -123,7 +123,6 @@ class UnscrambleWordExerciseRepository(IUnscrambleWordExerciseRepository):
             insert(ExerciseEntries)
             .values(
                 exercise_id=new_id,
-                id=entry.get_id().value if entry.get_id() else None,
                 last_answer=entry.get_last_user_answer().to_string()
                 if entry.get_last_user_answer()
                 else None,
@@ -139,7 +138,7 @@ class UnscrambleWordExerciseRepository(IUnscrambleWordExerciseRepository):
 
         await session.commit()
 
-        return
+        return exercise
 
     async def save(self, exercise: UnscrambleWordExercise) -> None:
         session = get_session()

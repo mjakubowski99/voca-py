@@ -1,12 +1,7 @@
-from typing import Generator, List, Optional
-from pydantic import BaseModel, field_validator, validator, root_validator
-import hashlib
-from uuid import UUID
+from typing import Optional
+from pydantic import BaseModel
 from src.flashcard.domain.models.owner import Owner
-from src.flashcard.domain.value_objects import FlashcardId, OwnerId, FlashcardDeckId
-from src.shared.value_objects.language import Language
-from src.shared.value_objects.user_id import UserId
-from enum import Enum
+from src.flashcard.domain.value_objects import FlashcardDeckId
 from src.shared.enum import LanguageLevel
 
 

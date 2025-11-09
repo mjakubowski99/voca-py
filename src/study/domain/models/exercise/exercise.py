@@ -50,6 +50,9 @@ class Exercise(BaseModel, ABC):
     def get_exercise_type(self) -> ExerciseType:
         return self.type
 
+    def is_completed(self) -> bool:
+        return self.status == ExerciseStatus.DONE or self.status == ExerciseStatus.SKIPPED
+
     def skip_exercise(self) -> None:
         self.set_status(ExerciseStatus.SKIPPED)
 

@@ -1,7 +1,10 @@
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from src.flashcard.domain.value_objects import FlashcardDeckId, FlashcardId
+from src.flashcard.domain.enum import FlashcardOwnerType
+from src.shared.value_objects.flashcard_id import FlashcardId
+from src.shared.value_objects.flashcard_deck_id import FlashcardDeckId
+
 from src.shared.models import Emoji
 from src.shared.value_objects.language import Language
 from src.shared.user.iuser import IUser
@@ -82,15 +85,7 @@ class IFlashcard(ABC):
         pass
 
     @abstractmethod
-    def get_is_story_part(self) -> bool:
-        pass
-
-    @abstractmethod
-    def get_story_sentence(self) -> Optional[str]:
-        pass
-
-    @abstractmethod
-    def get_order(self) -> int:
+    def get_owner_type(self) -> FlashcardOwnerType:
         pass
 
 
@@ -108,5 +103,5 @@ class IFlashcardFacade(ABC):
         pass
 
     @abstractmethod
-    async def new_rating(self, flashcard_id: FlashcardId, rating: Rating):
+    async def new_rating(self, rating_context: IRatingContext):
         pass

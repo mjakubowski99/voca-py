@@ -7,7 +7,7 @@ from src.flashcard.domain.value_objects import FlashcardId
 from src.flashcard.domain.models.flashcard_poll import FlashcardPoll
 from src.flashcard.domain.models.leitner_level_update import LeitnerLevelUpdate
 from src.flashcard.application.repository.contracts import IFlashcardPollRepository
-from core.models import FlashcardPollItem, FlashcardPollItems
+from core.models import FlashcardPollItems
 
 
 class FlashcardPollRepository(IFlashcardPollRepository):
@@ -28,7 +28,7 @@ class FlashcardPollRepository(IFlashcardPollRepository):
         flashcards_to_reject = [FlashcardId(item.flashcard_id) for item in result.scalars().all()]
 
         # Count total flashcards
-        count_stmt = select(func.count()).where(FlashcardPollItem.user_id == user_id.value)
+        count_stmt = select(func.count()).where(FlashcardPollItems.user_id == user_id.value)
         count_result = await session.execute(count_stmt)
         total_count = count_result.scalar() or 0
 
@@ -61,12 +61,12 @@ class FlashcardPollRepository(IFlashcardPollRepository):
             .where(FlashcardPollItems.user_id == update_obj.user_id.value)
             .where(FlashcardPollItems.flashcard_id.in_([f.value for f in update_obj.ids]))
             .values(
-                leitner_level=FlashcardPollItem.leitner_level
+                leitner_level=FlashcardPollItems.leitner_level
                 + update_obj.leitner_level_increment_step
                 + 1,
-                easy_ratings_count=FlashcardPollItem.easy_ratings_count + 1
+                easy_ratings_count=FlashcardPollItems.easy_ratings_count + 1
                 if update_obj.increment_easy_ratings_count()
-                else FlashcardPollItem.easy_ratings_count,
+                else FlashcardPollItems.easy_ratings_count,
             )
         )
         await session.execute(stmt)
@@ -147,3 +147,6 @@ class FlashcardPollRepository(IFlashcardPollRepository):
             delete(FlashcardPollItems).where(FlashcardPollItems.user_id == user_id.value)
         )
         await session.commit()
+
+    async def mark_all_user_sessions_finished(self, user_id: UserId) -> None:
+        pass

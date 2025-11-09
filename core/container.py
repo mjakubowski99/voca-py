@@ -1,5 +1,21 @@
 import punq
 
+from src.flashcard.application.facades.flashcard_facade import FlashcardFacade
+from src.flashcard.application.services.flashcard_poll_manager import FlashcardPollManager
+from src.flashcard.application.services.flashcard_poll_resolver import FlashcardPollResolver
+from src.flashcard.application.services.flashcard_poll_updater import FlashcardPollUpdater
+from src.flashcard.application.services.iflashcard_selector import IFlashcardSelector
+from src.flashcard.application.services.irepetition_algorithm import IRepetitionAlgorithm
+from src.shared.flashcard.contracts import IFlashcardFacade
+from src.study.application.command.add_next_learning_step_handler import AddNextLearningStepHandler
+from src.study.application.command.answer_exercise import AnswerExercise
+from src.study.application.command.create_session import CreateSessionHandler
+from src.study.application.command.rate_flashcard import RateFlashcard
+from src.study.application.repository.contracts import (
+    ISessionRepository,
+    IUnscrambleWordExerciseRepository,
+)
+from src.study.infrastructure.repository.session_repository import LearningSessionRepository
 from src.study.infrastructure.repository.unscramble_word_exercise_repository import (
     UnscrambleWordExerciseRepository,
 )
@@ -10,6 +26,7 @@ from src.flashcard.application.repository.contracts import (
     IFlashcardDeckReadRepository,
     IFlashcardDeckRepository,
     IFlashcardDuplicateRepository,
+    IFlashcardPollRepository,
     IFlashcardRepository,
     ISmTwoFlashcardRepository,
     IStoryRepository,
@@ -54,8 +71,23 @@ from src.user.domain.contracts import IOAuthLogin
 from src.user.infrastructure.oauth.oauth_login import OAuthLogin
 from src.user.infrastructure.repository.jwt_token_repository import JwtTokenRepository
 from src.user.infrastructure.repository.user_repository import UserRepository
+from src.flashcard.application.services.sm_two.sm_two_flashcard_selector import (
+    SmTwoFlashcardSelector,
+)
 from config import settings
 from typing import TypeVar, Type, Callable
+from src.flashcard.infrastructure.repository.flashcard_poll_repository import (
+    FlashcardPollRepository,
+)
+from src.flashcard.application.services.sm_two.sm_two_repetition_algorithm import (
+    SmTwoRepetitionAlgorithm,
+)
+from src.study.application.services.exercise_factory import ExerciseFactory
+from src.study.infrastructure.repository.word_match_exercise_repository import (
+    WordMatchExerciseRepository,
+)
+from src.study.application.repository.contracts import IWordMatchExerciseRepository
+from src.study.application.command.skip_exercise import SkipExercise
 
 T = TypeVar("T")
 
@@ -110,3 +142,23 @@ container.register(ITokenRepository, instance=JwtTokenRepository(secret_key=sett
 
 container.register(GenerateFlashcardsHandler)
 container.register(UnscrambleWordExerciseRepository)
+container.register(LearningSessionRepository)
+container.register(ISessionRepository, LearningSessionRepository)
+
+container.register(IFlashcardFacade, FlashcardFacade)
+container.register(IFlashcardSelector, SmTwoFlashcardSelector)
+container.register(IFlashcardPollRepository, FlashcardPollRepository)
+container.register(IRepetitionAlgorithm, SmTwoRepetitionAlgorithm)
+container.register(FlashcardPollUpdater)
+container.register(FlashcardPollManager)
+container.register(FlashcardPollResolver)
+container.register(CreateSessionHandler)
+container.register(FlashcardFacade)
+container.register(AddNextLearningStepHandler)
+container.register(ExerciseFactory)
+container.register(IUnscrambleWordExerciseRepository, UnscrambleWordExerciseRepository)
+container.register(RateFlashcard)
+container.register(WordMatchExerciseRepository)
+container.register(IWordMatchExerciseRepository, WordMatchExerciseRepository)
+container.register(AnswerExercise)
+container.register(SkipExercise)

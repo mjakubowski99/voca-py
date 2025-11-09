@@ -6,6 +6,7 @@ from core.models import Flashcards, FlashcardDecks
 from src.flashcard.application.repository.contracts import IFlashcardRepository
 from src.flashcard.domain.models.deck import Deck
 from src.flashcard.domain.models.flashcard import Flashcard
+from src.flashcard.domain.models.owner import Owner
 from src.flashcard.domain.value_objects import FlashcardId, FlashcardDeckId
 from src.shared.value_objects.user_id import UserId
 from src.shared.value_objects.language import Language
@@ -193,7 +194,9 @@ class FlashcardRepository(IFlashcardRepository):
         deck = None
         if deck_row:
             deck = Deck(
-                owner=None,  # implement owner builder if needed
+                owner=Owner.from_user(UserId(value=deck_row.user_id))
+                if deck_row.user_id
+                else Owner.from_admin(UserId(value=deck_row.admin_id)),
                 tag=deck_row.tag,
                 name=deck_row.name,
                 default_language_level=LanguageLevel(deck_row.default_language_level),
@@ -208,9 +211,10 @@ class FlashcardRepository(IFlashcardRepository):
             back_lang=Language(flashcard_row.back_lang),
             front_context=flashcard_row.front_context,
             back_context=flashcard_row.back_context,
-            owner=None,  # implement owner builder if needed
+            owner=Owner.from_user(UserId(value=flashcard_row.user_id))
+            if flashcard_row.user_id
+            else Owner.from_admin(UserId(value=flashcard_row.admin_id)),
             deck=deck,
-            language_level=LanguageLevel(flashcard_row.language_level),
+            level=LanguageLevel(flashcard_row.language_level),
             emoji=Emoji.from_unicode(flashcard_row.emoji) if flashcard_row.emoji else None,
-            rating=None,  # implement rating if needed
         )
