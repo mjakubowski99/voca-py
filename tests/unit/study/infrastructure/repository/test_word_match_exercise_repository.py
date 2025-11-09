@@ -159,7 +159,6 @@ async def test_save_word_match_exercise(
     user_factory: UserFactory,
     exercise_factory: ExerciseFactory,
     exercise_entry_factory: ExerciseEntryFactory,
-    dump_db,
 ):
     user = await user_factory.create_auth_user()
     exercise = await exercise_factory.create(
@@ -220,7 +219,6 @@ async def test_save_word_match_exercise(
     )
 
     await repo.save(obj)
-    await dump_db(ExerciseEntries)
 
     await assert_db_has(Exercises, {"id": exercise.id, "status": ExerciseStatus.DONE.value})
     await assert_db_has(

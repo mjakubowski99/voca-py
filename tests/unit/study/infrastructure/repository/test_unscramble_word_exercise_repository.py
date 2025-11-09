@@ -38,6 +38,7 @@ async def test_create_and_find_unscramble_word_exercise(
         word_translation="banan",
         context_sentence_translation="Zjadłem dziś banana.",
         emoji="🍌",
+        flashcard_id=FlashcardId(1),
     )
     exercise_id = ExerciseId(value=exercise.id)
 
@@ -67,6 +68,7 @@ async def test_find_by_entry_id_should_return_exercise(
         word_translation="jabłko",
         context_sentence_translation="Zjadła jabłko.",
         emoji="🍎",
+        flashcard_id=FlashcardId(1),
     )
     entry_id = await session.scalar(
         select(ExerciseEntries.id).where(ExerciseEntries.exercise_id == exercise.id)
@@ -100,6 +102,7 @@ async def test_save_should_update_existing_exercise(
         word_translation="pomarańcza",
         context_sentence_translation="Mam pomarańczę.",
         emoji="🍊",
+        flashcard_id=FlashcardId(1),
     )
     entry_id = await session.scalar(
         select(ExerciseEntries.id).where(ExerciseEntries.exercise_id == row.exercise_id)

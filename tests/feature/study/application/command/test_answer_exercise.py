@@ -294,6 +294,95 @@ async def test_handle_word_match_should_assess_answer_and_update_exercise(
 
 
 @pytest.mark.asyncio
+async def test_handle_word_match_should_assess_answer_and_update_exercise_with_multiple_entries(
+    session: AsyncSession,
+    user_factory: UserFactory,
+    deck_factory: FlashcardDeckFactory,
+    flashcard_factory: FlashcardFactory,
+    word_match_exercise_factory: WordMatchExerciseFactory,
+    assert_db_has,
+):
+    # Arrange
+    handler = get_handler()
+    user = await user_factory.create_auth_user()
+
+    owner = Owner.from_auth_user(user=user)
+    deck = await deck_factory.create(owner=owner)
+    flashcard1 = await flashcard_factory.create(deck=deck, owner=owner)
+    flashcard2 = await flashcard_factory.create(deck=deck, owner=owner)
+    flashcard3 = await flashcard_factory.create(deck=deck, owner=owner)
+
+    # Create an exercise with multiple entries
+    exercise = await word_match_exercise_factory.create_with_entries(
+        user_id=user.get_id().get_value(),
+        entries=[
+            {
+                "order": 0,
+                "word": "dog",
+                "word_translation": "perro",
+                "sentence": "The dog is barking.",
+                "flashcard_id": FlashcardId(value=flashcard1.id),
+            },
+            {
+                "order": 1,
+                "word": "cat",
+                "word_translation": "gato",
+                "sentence": "The cat is sleeping.",
+                "flashcard_id": FlashcardId(value=flashcard2.id),
+            },
+            {
+                "order": 2,
+                "word": "bird",
+                "word_translation": "pájaro",
+                "sentence": "The bird is flying.",
+                "flashcard_id": FlashcardId(value=flashcard3.id),
+            },
+        ],
+        options=["dog", "cat", "bird", "fish"],
+        story_id=123,
+    )
+
+    entry_ids = await session.scalars(
+        select(ExerciseEntries.id).where(ExerciseEntries.exercise_id == exercise.id)
+    )
+    entry_ids = [ExerciseEntryId(value=entry_id) for entry_id in entry_ids.all()]
+
+    # Act
+
+    await handler.handle_word_match(
+        user=user,
+        exercise_id=ExerciseId(value=exercise.id),
+        exercise_entry_id=entry_ids[1],
+        answer="cat",
+    )
+
+    # Assert
+    await assert_db_has(
+        ExerciseEntries,
+        {
+            "id": entry_ids[0].get_value(),
+            "score": 0.0,
+        },
+    )
+    await assert_db_has(
+        ExerciseEntries,
+        {
+            "id": entry_ids[2].get_value(),
+            "score": 0.0,
+        },
+    )
+    await assert_db_has(
+        ExerciseEntries,
+        {
+            "id": entry_ids[1].get_value(),
+            "last_answer": "cat",
+            "last_answer_correct": True,
+            "score": 100.0,
+        },
+    )
+
+
+@pytest.mark.asyncio
 async def test_handle_word_match_should_save_rating_when_exercise_is_completed(
     session: AsyncSession,
     user_factory: UserFactory,

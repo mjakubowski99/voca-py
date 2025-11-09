@@ -140,6 +140,7 @@ async def test_find_should_build_learning_session_with_unscramble_exercise(
         "context",
         "word_translation",
         "test",
+        flashcard_id=FlashcardId(value=flashcard.id),
     )
     entry_id = await session.scalar(
         select(ExerciseEntries.id).where(ExerciseEntries.exercise_id == exercise.exercise_id)

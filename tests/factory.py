@@ -1,6 +1,6 @@
 # tests/factories.py
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Any, Optional
 import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -407,6 +407,71 @@ class WordMatchExerciseFactory:
         await self.session.refresh(exercise)
         return exercise
 
+    async def build_with_entries(
+        self,
+        user_id: uuid.UUID,
+        entries: list[dict[str, Any]],
+        options: list[str] | None = None,
+        story_id: Optional[int] = None,
+        status: ExerciseStatus = ExerciseStatus.NEW,
+    ) -> Exercises:
+        """
+        Build an exercise with multiple entries.
+
+        Args:
+            entries: List of dicts with keys: word, word_translation, sentence, flashcard_id (optional)
+            Example: [
+                {
+                    "word": "dog",
+                    "word_translation": "perro",
+                    "sentence": "The dog is barking.",
+                    "flashcard_id": FlashcardId(1)
+                },
+                {
+                    "word": "cat",
+                    "word_translation": "gato",
+                    "sentence": "The cat is sleeping.",
+                    "flashcard_id": FlashcardId(2)
+                }
+            ]
+        """
+        if options is None:
+            options = [entry["word"] for entry in entries]
+
+        sentences = []
+        for idx, entry in enumerate(entries):
+            flashcard_id = entry.get("flashcard_id", FlashcardId(idx + 1))
+            sentences.append(
+                {
+                    "order": idx,
+                    "flashcard_id": flashcard_id.value if flashcard_id else idx + 1,
+                    "sentence": entry["sentence"],
+                    "word": entry["word"],
+                    "translation": entry["word_translation"],
+                }
+            )
+
+        exercise = await self.exercise_factory.create(
+            user_id,
+            ExerciseType.WORD_MATCH,
+            status,
+            properties={
+                "story_id": story_id,
+                "sentences": sentences,
+                "answer_options": options,
+            },
+        )
+
+        for idx, entry in enumerate(entries):
+            await self.entry_factory.create(
+                exercise=exercise,
+                correct_answer=entry["word"],
+                order=idx,
+            )
+
+        await self.session.refresh(exercise)
+        return exercise
+
     async def create(
         self,
         user_id: uuid.UUID,
@@ -425,6 +490,23 @@ class WordMatchExerciseFactory:
             word_translation=word_translation,
             sentence=sentence,
             flashcard_id=flashcard_id,
+            options=options,
+            story_id=story_id,
+            status=status,
+        )
+
+    async def create_with_entries(
+        self,
+        user_id: uuid.UUID,
+        entries: list[dict[str, Any]],
+        options: list[str] | None = None,
+        story_id: Optional[int] = None,
+        status: ExerciseStatus = ExerciseStatus.NEW,
+    ) -> Exercises:
+        """Create and persist a WordMatchExercise with multiple entries in the DB."""
+        return await self.build_with_entries(
+            user_id=user_id,
+            entries=entries,
             options=options,
             story_id=story_id,
             status=status,
