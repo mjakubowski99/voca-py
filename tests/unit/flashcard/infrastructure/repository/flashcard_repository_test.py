@@ -1,4 +1,5 @@
 import pytest
+from punq import Container
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime
@@ -16,22 +17,24 @@ from src.shared.value_objects.language import Language
 from src.shared.enum import LanguageLevel
 from core.models import Flashcards
 from tests.factory import FlashcardDeckFactory, OwnerFactory
-from core.container import container
 
 
-def get_repo() -> FlashcardRepository:
+@pytest.fixture
+def repository(container: Container) -> FlashcardRepository:
     return container.resolve(FlashcardRepository)
 
 
 @pytest.mark.asyncio
 async def test_create_many_should_insert_flashcards(
-    session: AsyncSession, owner_factory: OwnerFactory, deck_factory: FlashcardDeckFactory
+    repository: FlashcardRepository,
+    session: AsyncSession,
+    owner_factory: OwnerFactory,
+    deck_factory: FlashcardDeckFactory,
 ):
     """
     Ensures that FlashcardRepository.create_many() correctly inserts multiple flashcards
     into the database, preserving language fields, context, and emoji.
     """
-    repo = get_repo()
     user = await owner_factory.create_user_owner()
     deck = await deck_factory.create(user)
 
@@ -61,7 +64,7 @@ async def test_create_many_should_insert_flashcards(
         )
 
     # Call the method under test
-    await repo.create_many(flashcards)
+    await repository.create_many(flashcards)
 
     # Verify flashcards were inserted
     stmt = select(Flashcards).where(Flashcards.flashcard_deck_id == deck.id)
@@ -85,13 +88,15 @@ async def test_create_many_should_insert_flashcards(
 
 @pytest.mark.asyncio
 async def test_create_many_from_story_flashcards(
-    session: AsyncSession, owner_factory: OwnerFactory, deck_factory: FlashcardDeckFactory
+    repository: FlashcardRepository,
+    session: AsyncSession,
+    owner_factory: OwnerFactory,
+    deck_factory: FlashcardDeckFactory,
 ):
     """
     Test that FlashcardRepository.create_many_from_story_flashcards inserts all flashcards
     from a StoryCollection and assigns IDs correctly.
     """
-    repo = get_repo()
     user = await owner_factory.create_user_owner()
     deck = await deck_factory.create(user)
 
@@ -138,7 +143,7 @@ async def test_create_many_from_story_flashcards(
     )
 
     # Call method under test
-    updated_stories = await repo.create_many_from_story_flashcards(stories)
+    updated_stories = await repository.create_many_from_story_flashcards(stories)
 
     # Check returned collection
     inserted_flashcards = list(updated_stories.get_all_story_flashcards())

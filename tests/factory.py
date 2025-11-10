@@ -405,6 +405,7 @@ class WordMatchExerciseFactory:
         )
 
         await self.session.refresh(exercise)
+        await self.session.commit()
         return exercise
 
     async def build_with_entries(
@@ -470,6 +471,7 @@ class WordMatchExerciseFactory:
             )
 
         await self.session.refresh(exercise)
+        await self.session.commit()
         return exercise
 
     async def create(

@@ -11,9 +11,10 @@ from core.models import FlashcardPollItems
 
 
 class FlashcardPollRepository(IFlashcardPollRepository):
-    async def find_by_user(self, user_id: UserId, learnt_cards_purge_limit: int) -> FlashcardPoll:
-        session: AsyncSession = get_session()
+    def __init__(self, session: AsyncSession):
+        self.session = session
 
+    async def find_by_user(self, user_id: UserId, learnt_cards_purge_limit: int) -> FlashcardPoll:
         # Fetch flashcards exceeding easy_ratings_count threshold
         stmt = (
             select(FlashcardPollItems)
@@ -24,12 +25,12 @@ class FlashcardPollRepository(IFlashcardPollRepository):
             )
             .limit(learnt_cards_purge_limit)
         )
-        result = await session.execute(stmt)
+        result = await self.session.execute(stmt)
         flashcards_to_reject = [FlashcardId(item.flashcard_id) for item in result.scalars().all()]
 
         # Count total flashcards
         count_stmt = select(func.count()).where(FlashcardPollItems.user_id == user_id.value)
-        count_result = await session.execute(count_stmt)
+        count_result = await self.session.execute(count_stmt)
         total_count = count_result.scalar() or 0
 
         return FlashcardPoll(
@@ -39,23 +40,21 @@ class FlashcardPollRepository(IFlashcardPollRepository):
         )
 
     async def purge_latest_flashcards(self, user_id: UserId, limit: int) -> None:
-        session: AsyncSession = get_session()
         stmt = (
             select(FlashcardPollItems.id)
             .where(FlashcardPollItems.user_id == user_id.value)
             .order_by(FlashcardPollItems.created_at.desc())
             .limit(limit)
         )
-        result = await session.execute(stmt)
+        result = await self.session.execute(stmt)
         ids_to_delete = [row[0] for row in result.all()]
         if ids_to_delete:
-            await session.execute(
+            await self.session.execute(
                 delete(FlashcardPollItems).where(FlashcardPollItems.id.in_(ids_to_delete))
             )
-            await session.commit()
+            await self.session.commit()
 
     async def save_leitner_level_update(self, update_obj: LeitnerLevelUpdate) -> bool:
-        session: AsyncSession = get_session()
         stmt = (
             update(FlashcardPollItems)
             .where(FlashcardPollItems.user_id == update_obj.user_id.value)
@@ -69,17 +68,15 @@ class FlashcardPollRepository(IFlashcardPollRepository):
                 else FlashcardPollItems.easy_ratings_count,
             )
         )
-        await session.execute(stmt)
-        await session.commit()
+        await self.session.execute(stmt)
+        await self.session.commit()
         return True
 
     async def save(self, poll: FlashcardPoll) -> None:
-        session: AsyncSession = get_session()
-
         # Delete flashcards to purge
         purge_ids = [f.value for f in poll.flashcard_ids_to_purge]
         if purge_ids:
-            await session.execute(
+            await self.session.execute(
                 delete(FlashcardPollItems).where(
                     FlashcardPollItems.user_id == poll.user_id.value,
                     FlashcardPollItems.flashcard_id.in_(purge_ids),
@@ -92,7 +89,7 @@ class FlashcardPollRepository(IFlashcardPollRepository):
             min_level_stmt = select(func.min(FlashcardPollItems.leitner_level)).where(
                 FlashcardPollItems.user_id == poll.user_id.value
             )
-            min_level_result = await session.execute(min_level_stmt)
+            min_level_result = await self.session.execute(min_level_stmt)
             min_level = min_level_result.scalar() or 0
 
             for f_id in poll.flashcard_ids_to_add:
@@ -106,14 +103,13 @@ class FlashcardPollRepository(IFlashcardPollRepository):
                     )
                 )
 
-            session.add_all(insert_data)
+            self.session.add_all(insert_data)
 
-        await session.commit()
+        await self.session.commit()
 
     async def select_next_leitner_flashcard(
         self, user_id: UserId, exclude_flashcard_ids: List[FlashcardId], limit: int
     ) -> List[FlashcardId]:
-        session: AsyncSession = get_session()
         stmt = (
             select(FlashcardPollItems)
             .where(FlashcardPollItems.user_id == user_id.value)
@@ -121,32 +117,30 @@ class FlashcardPollRepository(IFlashcardPollRepository):
             .order_by(FlashcardPollItems.leitner_level, FlashcardPollItems.updated_at)
             .limit(limit)
         )
-        result = await session.execute(stmt)
+        result = await self.session.execute(stmt)
         return [FlashcardId(item.flashcard_id) for item in result.scalars().all()]
 
     async def reset_leitner_level_if_max_level_exceeded(
         self, user_id: UserId, max_level: int
     ) -> None:
-        session: AsyncSession = get_session()
         stmt = select(func.max(FlashcardPollItems.leitner_level)).where(
             FlashcardPollItems.user_id == user_id.value
         )
-        result = await session.execute(stmt)
+        result = await self.session.execute(stmt)
         current_max = result.scalar() or 0
         if current_max > max_level:
-            await session.execute(
+            await self.session.execute(
                 update(FlashcardPollItems)
                 .where(FlashcardPollItems.user_id == user_id.value)
                 .values(leitner_level=0)
             )
-            await session.commit()
+            await self.session.commit()
 
     async def delete_all_by_user_id(self, user_id: UserId) -> None:
-        session: AsyncSession = get_session()
-        await session.execute(
+        await self.session.execute(
             delete(FlashcardPollItems).where(FlashcardPollItems.user_id == user_id.value)
         )
-        await session.commit()
+        await self.session.commit()
 
     async def mark_all_user_sessions_finished(self, user_id: UserId) -> None:
         pass

@@ -1,4 +1,5 @@
 import pytest
+from punq import Container
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.flashcard.domain.models.deck import Deck
 from tests.factory import OwnerFactory, FlashcardDeckFactory
@@ -10,12 +11,15 @@ from src.shared.enum import LanguageLevel
 from core.container import container
 
 
-def get_repo() -> FlashcardDeckRepository:
+@pytest.fixture
+def repository(container: Container) -> FlashcardDeckRepository:
     return container.resolve(FlashcardDeckRepository)
 
 
 @pytest.mark.asyncio
-async def test_create_should_create_new_deck(owner_factory: OwnerFactory):
+async def test_create_should_create_new_deck(
+    repository: FlashcardDeckRepository, owner_factory: OwnerFactory
+):
     deck = Deck(
         owner=await owner_factory.create_user_owner(),
         name="Example deck",
@@ -23,24 +27,23 @@ async def test_create_should_create_new_deck(owner_factory: OwnerFactory):
         default_language_level=LanguageLevel.B2,
     )
 
-    result = await get_repo().create(deck)
+    result = await repository.create(deck)
 
     assert isinstance(result, FlashcardDeckId)
 
 
 @pytest.mark.asyncio
 async def test_find_by_id_should_return_deck(
+    repository: FlashcardDeckRepository,
     owner_factory: OwnerFactory,
     deck_factory: FlashcardDeckFactory,
 ):
-    repo: FlashcardDeckRepository = get_repo()
-
     # Use the factory to create a deck
     owner = await owner_factory.create_user_owner()
     deck = await deck_factory.create(owner=owner)
 
     # Fetch the deck by ID
-    fetched_deck = await repo.find_by_id(FlashcardDeckId(value=deck.id))
+    fetched_deck = await repository.find_by_id(FlashcardDeckId(value=deck.id))
 
     # Assertions
     assert fetched_deck.name == deck.name
@@ -49,10 +52,8 @@ async def test_find_by_id_should_return_deck(
 
 
 @pytest.mark.asyncio
-async def test_find_by_id_should_raise_if_not_found():
-    repo: FlashcardDeckRepository = get_repo()
-
+async def test_find_by_id_should_raise_if_not_found(repository: FlashcardDeckRepository):
     invalid_id = FlashcardDeckId(value=100000000)
 
     with pytest.raises(ValueError, match="Deck not found"):
-        await repo.find_by_id(invalid_id)
+        await repository.find_by_id(invalid_id)

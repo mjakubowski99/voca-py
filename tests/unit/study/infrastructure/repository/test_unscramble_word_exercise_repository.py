@@ -1,3 +1,4 @@
+from punq import Container
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import select
@@ -13,19 +14,20 @@ from src.study.domain.value_objects import ExerciseId
 from src.shared.value_objects.user_id import UserId
 from src.study.domain.models.answer.unscramble_word_answer import UnscrambleWordAnswer
 from src.shared.models import Emoji
-from core.container import container
 from tests.factory import (
     UserFactory,
     UnscrambleWordExerciseFactory,
 )
 
 
-def get_repo() -> UnscrambleWordExerciseRepository:
+@pytest.fixture
+def repository(container: Container) -> UnscrambleWordExerciseRepository:
     return container.resolve(UnscrambleWordExerciseRepository)
 
 
 @pytest.mark.asyncio
 async def test_create_and_find_unscramble_word_exercise(
+    repository: UnscrambleWordExerciseRepository,
     user_factory: UserFactory,
     unscramble_word_exercise_factory: UnscrambleWordExerciseFactory,
 ):
@@ -42,8 +44,7 @@ async def test_create_and_find_unscramble_word_exercise(
     )
     exercise_id = ExerciseId(value=exercise.id)
 
-    repo = get_repo()
-    found = await repo.find(exercise_id)
+    found = await repository.find(exercise_id)
 
     assert found.get_id().get_value() == exercise_id.get_value()
     assert found.get_word() == "banana"
@@ -55,7 +56,7 @@ async def test_create_and_find_unscramble_word_exercise(
 
 @pytest.mark.asyncio
 async def test_find_by_entry_id_should_return_exercise(
-    session: AsyncSession,
+    repository: UnscrambleWordExerciseRepository,
     user_factory: UserFactory,
     unscramble_word_exercise_factory: UnscrambleWordExerciseFactory,
 ):
@@ -70,15 +71,14 @@ async def test_find_by_entry_id_should_return_exercise(
         emoji="🍎",
         flashcard_id=FlashcardId(1),
     )
-    entry_id = await session.scalar(
+    entry_id = await repository.session.scalar(
         select(ExerciseEntries.id).where(ExerciseEntries.exercise_id == exercise.id)
     )
 
     entry_id = ExerciseEntryId(value=entry_id)
 
     # Act
-    repo = get_repo()
-    found = await repo.find_by_entry_id(entry_id)
+    found = await repository.find_by_entry_id(entry_id)
 
     # Assert
     assert found.get_word() == "apple"
@@ -89,6 +89,7 @@ async def test_find_by_entry_id_should_return_exercise(
 @pytest.mark.asyncio
 async def test_save_should_update_existing_exercise(
     session: AsyncSession,
+    repository: UnscrambleWordExerciseRepository,
     user_factory: UserFactory,
     unscramble_word_exercise_factory: UnscrambleWordExerciseFactory,
     assert_db_has,
@@ -128,9 +129,7 @@ async def test_save_should_update_existing_exercise(
     )
     exercise.get_exercise_entries()[0].updated = True
 
-    repo = get_repo()
-
-    await repo.save(exercise)
+    await repository.save(exercise)
 
     # Assert
     await assert_db_has(ExerciseEntries, {"id": entry_id.get_value(), "score": 0.93})
@@ -138,6 +137,7 @@ async def test_save_should_update_existing_exercise(
 
 @pytest.mark.asyncio
 async def test_create_should_create_exercise(
+    repository: UnscrambleWordExerciseRepository,
     user_factory: UserFactory,
     assert_db_has,
 ):
@@ -154,9 +154,7 @@ async def test_create_should_create_exercise(
         emoji=Emoji(emoji="🍎"),
     )
 
-    repo = get_repo()
-
-    await repo.create(exercise)
+    await repository.create(exercise)
 
     # Assert
     await assert_db_has(

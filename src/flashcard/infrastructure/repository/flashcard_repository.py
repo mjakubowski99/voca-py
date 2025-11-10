@@ -13,24 +13,24 @@ from src.shared.value_objects.language import Language
 from src.shared.enum import LanguageLevel
 from src.shared.models import Emoji
 from src.flashcard.domain.models.story_collection import StoryCollection
-from core.db import get_session
 
 
 class FlashcardRepository(IFlashcardRepository):
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
     async def get_by_category(self, deck_id: FlashcardDeckId) -> list[Flashcard]:
-        session: AsyncSession = get_session()
         stmt = (
             select(Flashcards, FlashcardDecks)
             .join(FlashcardDecks, Flashcards.flashcard_deck_id == FlashcardDecks.id)
             .where(Flashcards.flashcard_deck_id == deck_id.value)
         )
-        result = await session.execute(stmt)
+        result = await self.session.execute(stmt)
         return [self.map(row[0], row[1]) for row in result.fetchall()]
 
     async def get_random_flashcards(
         self, user_id: UserId, limit: int, exclude_ids: list[FlashcardId]
     ) -> list[Flashcard]:
-        session: AsyncSession = get_session()
         stmt = (
             select(Flashcards, FlashcardDecks)
             .join(FlashcardDecks, Flashcards.flashcard_deck_id == FlashcardDecks.id)
@@ -41,13 +41,12 @@ class FlashcardRepository(IFlashcardRepository):
             .order_by(func.random())
             .limit(limit)
         )
-        result = await session.execute(stmt)
+        result = await self.session.execute(stmt)
         return [self.map(row[0], row[1]) for row in result.fetchall()]
 
     async def get_random_flashcards_by_category(
         self, deck_id: FlashcardDeckId, limit: int, exclude_ids: list[FlashcardId]
     ) -> list[Flashcard]:
-        session: AsyncSession = get_session()
         stmt = (
             select(Flashcards, FlashcardDecks)
             .join(FlashcardDecks, Flashcards.flashcard_deck_id == FlashcardDecks.id)
@@ -58,11 +57,10 @@ class FlashcardRepository(IFlashcardRepository):
             .order_by(func.random())
             .limit(limit)
         )
-        result = await session.execute(stmt)
+        result = await self.session.execute(stmt)
         return [self.map(row[0], row[1]) for row in result.fetchall()]
 
     async def create_many(self, flashcards: list[Flashcard]) -> None:
-        session: AsyncSession = get_session()
         now = datetime.now(timezone.utc).replace(tzinfo=None)
         insert_data = [
             {
@@ -82,15 +80,14 @@ class FlashcardRepository(IFlashcardRepository):
             }
             for f in flashcards
         ]
-        await session.execute(Flashcards.__table__.insert(), insert_data)
-        await session.commit()
+        await self.session.execute(Flashcards.__table__.insert(), insert_data)
+        await self.session.commit()
 
     async def create_many_from_story_flashcards(self, stories: StoryCollection) -> StoryCollection:
         """
         Inserts all flashcards from a StoryCollection in bulk, assigns IDs to each,
         and returns the updated StoryCollection.
         """
-        session: AsyncSession = get_session()
         now = datetime.now(timezone.utc).replace(tzinfo=None)
 
         insert_data = []
@@ -116,43 +113,39 @@ class FlashcardRepository(IFlashcardRepository):
 
         stmt = insert(Flashcards).returning(Flashcards.id).values(insert_data)
 
-        result = await session.execute(stmt)
+        result = await self.session.execute(stmt)
         inserted_ids = [FlashcardId(r.id) for r in result.fetchall()]
 
         # assign the generated IDs to the flashcards in the story collection
         for story_flashcard, new_id in zip(stories.get_all_story_flashcards(), inserted_ids):
             story_flashcard.flashcard.id = new_id
 
-        await session.commit()
+        await self.session.commit()
         return stories
 
     async def find_many(self, flashcard_ids: list[FlashcardId]) -> list[Flashcard]:
-        session: AsyncSession = get_session()
         stmt = (
             select(Flashcards, FlashcardDecks)
             .join(FlashcardDecks, Flashcards.flashcard_deck_id == FlashcardDecks.id)
             .where(Flashcards.id.in_([f.value for f in flashcard_ids]))
         )
-        result = await session.execute(stmt)
+        result = await self.session.execute(stmt)
         return [self.map(row[0], row[1]) for row in result.fetchall()]
 
     async def delete(self, flashcard_id: FlashcardId) -> None:
-        session: AsyncSession = get_session()
         stmt = delete(Flashcards).where(Flashcards.id == flashcard_id.value)
-        await session.execute(stmt)
-        await session.commit()
+        await self.session.execute(stmt)
+        await self.session.commit()
 
     async def bulk_delete(self, user_id: UserId, flashcard_ids: list[FlashcardId]) -> None:
-        session: AsyncSession = get_session()
         stmt = delete(Flashcards).where(
             ((Flashcards.user_id == user_id.value) | (Flashcards.admin_id == user_id.value)),
             Flashcards.id.in_([f.value for f in flashcard_ids]),
         )
-        await session.execute(stmt)
-        await session.commit()
+        await self.session.execute(stmt)
+        await self.session.commit()
 
     async def update(self, flashcard: Flashcard) -> None:
-        session: AsyncSession = get_session()
         now = datetime.now(timezone.utc).replace(tzinfo=None)
         stmt = (
             update(Flashcards)
@@ -172,13 +165,12 @@ class FlashcardRepository(IFlashcardRepository):
                 updated_at=now,
             )
         )
-        await session.execute(stmt)
-        await session.commit()
+        await self.session.execute(stmt)
+        await self.session.commit()
 
     async def replace_deck(
         self, actual_deck_id: FlashcardDeckId, new_deck_id: FlashcardDeckId
     ) -> None:
-        session: AsyncSession = get_session()
         stmt = (
             update(Flashcards)
             .where(Flashcards.flashcard_deck_id == actual_deck_id.value)
@@ -187,8 +179,8 @@ class FlashcardRepository(IFlashcardRepository):
                 updated_at=datetime.now(timezone.utc).replace(tzinfo=None),
             )
         )
-        await session.execute(stmt)
-        await session.commit()
+        await self.session.execute(stmt)
+        await self.session.commit()
 
     def map(self, flashcard_row: Flashcards, deck_row: FlashcardDecks | None) -> Flashcard:
         deck = None

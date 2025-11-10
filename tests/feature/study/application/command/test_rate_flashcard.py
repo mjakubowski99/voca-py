@@ -1,3 +1,5 @@
+import pytest
+from punq import Container
 from core.models import LearningSessionFlashcards, SmTwoFlashcards
 from src.flashcard.domain.value_objects import SessionId
 from src.study.domain.value_objects import LearningSessionStepId
@@ -9,16 +11,17 @@ from tests.factory import (
     LearningSessionFlashcardFactory,
 )
 from src.study.application.command.rate_flashcard import RateFlashcard
-from core.container import container
 from src.flashcard.domain.models.owner import Owner
 from src.study.domain.enum import Rating
 
 
-def get_handler() -> RateFlashcard:
+@pytest.fixture
+def handler(container: Container) -> RateFlashcard:
     return container.resolve(RateFlashcard)
 
 
 async def test_rate_flashcard(
+    handler: RateFlashcard,
     user_factory: UserFactory,
     deck_factory: FlashcardDeckFactory,
     flashcard_factory: FlashcardFactory,
@@ -26,7 +29,6 @@ async def test_rate_flashcard(
     learning_session_flashcard_factory: LearningSessionFlashcardFactory,
     assert_db_has,
 ):
-    handler = get_handler()
     user = await user_factory.create_auth_user()
 
     owner = Owner.from_auth_user(user=user)

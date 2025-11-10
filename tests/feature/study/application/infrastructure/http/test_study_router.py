@@ -1,4 +1,5 @@
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 from core.models import LearningSessionFlashcards, SmTwoFlashcards
 from src.study.domain.enum import Rating, SessionType
 from tests.client import HttpClient
@@ -84,13 +85,13 @@ async def test_rate_flashcard_success(
         owner=Owner(id=OwnerId(value=user.id), flashcard_owner_type=FlashcardOwnerType.USER)
     )
     flashcard = await flashcard_factory.create(deck=deck, owner=owner)
-    session = await learning_session_factory.create(user_id=user.id, deck=deck)
+    learning_session = await learning_session_factory.create(user_id=user.id, deck=deck)
     session_step = await learning_session_flashcard_factory.create(
-        learning_session=session, flashcard=flashcard
+        learning_session=learning_session, flashcard=flashcard
     )
     client.login(user)
     response = await client.put(
-        f"/api/v2/flashcards/session/{session.id}/rate-flashcard",
+        f"/api/v2/flashcards/session/{learning_session.id}/rate-flashcard",
         json={"ratings": [{"id": session_step.id, "rating": Rating.VERY_GOOD.value}]},
     )
 

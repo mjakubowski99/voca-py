@@ -8,13 +8,13 @@ from src.flashcard.domain.value_objects import FlashcardId
 from src.shared.value_objects.story_id import StoryId
 from src.flashcard.infrastructure.repository.flashcard_repository import FlashcardRepository
 from core.models import StoryFlashcards, Stories
-from core.db import get_session
 from src.shared.value_objects.user_id import UserId
 
 
 class StoryRepository(IStoryRepository):
-    def __init__(self, flashcard_repo: FlashcardRepository):
+    def __init__(self, flashcard_repo: FlashcardRepository, session: AsyncSession):
         self.flashcard_repo = flashcard_repo
+        self.session = session
 
     async def find_random_story_id_by_flashcard_id(
         self, flashcard_id: FlashcardId
@@ -22,14 +22,13 @@ class StoryRepository(IStoryRepository):
         """
         Returns a random story_id that contains the given flashcard.
         """
-        session: AsyncSession = get_session()
         query = (
             select(StoryFlashcards.story_id)
             .where(StoryFlashcards.flashcard_id == flashcard_id.value)
             .order_by(func.random())
             .limit(1)
         )
-        result = await session.execute(query)
+        result = await self.session.execute(query)
         row = result.scalar_one_or_none()
         return StoryId(row) if row else None
 
@@ -37,14 +36,13 @@ class StoryRepository(IStoryRepository):
         """
         Returns a Story with its flashcards mapped for the given user.
         """
-        session: AsyncSession = get_session()
         query = select(
             StoryFlashcards.flashcard_id,
             StoryFlashcards.story_id,
             StoryFlashcards.sentence_override,
         ).where(StoryFlashcards.story_id == story_id.value)
 
-        result = await session.execute(query)
+        result = await self.session.execute(query)
         rows = result.all()
         if not rows:
             return None
@@ -70,13 +68,12 @@ class StoryRepository(IStoryRepository):
         """
         Inserts multiple stories and their story_flashcards.
         """
-        session: AsyncSession = get_session()
         now = datetime.now(timezone.utc).replace(tzinfo=None)
 
         # Insert stories
         insert_data = [{"created_at": now, "updated_at": now} for _ in stories.get()]
         stmt = insert(Stories).returning(Stories.id)
-        result = await session.execute(stmt, insert_data)
+        result = await self.session.execute(stmt, insert_data)
         story_ids = [StoryId(row.id) for row in result.fetchall()]
 
         # Assign story_ids to story flashcards
@@ -98,14 +95,13 @@ class StoryRepository(IStoryRepository):
             }
             for sf in stories.get_all_story_flashcards()
         ]
-        await session.execute(insert(StoryFlashcards), flashcard_insert_data)
-        await session.commit()
+        await self.session.execute(insert(StoryFlashcards), flashcard_insert_data)
+        await self.session.commit()
 
     async def bulk_delete(self, story_ids: list[StoryId]) -> None:
         """
         Deletes multiple stories by their IDs.
         """
-        session: AsyncSession = get_session()
         stmt = delete(Stories).where(Stories.id.in_([s.value for s in story_ids]))
-        await session.execute(stmt)
-        await session.commit()
+        await self.session.execute(stmt)
+        await self.session.commit()

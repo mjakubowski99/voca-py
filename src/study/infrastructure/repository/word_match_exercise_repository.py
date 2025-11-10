@@ -11,19 +11,21 @@ from src.study.domain.value_objects import ExerciseEntryId
 from src.study.domain.enum import ExerciseStatus
 from src.study.domain.models.answer.word_match_answer import WordMatchAnswer
 from core.models import Exercises, ExerciseEntries
-from core.db import get_session
+from sqlalchemy.ext.asyncio import AsyncSession
 from src.study.application.repository.contracts import IWordMatchExerciseRepository
 
 
 class WordMatchExerciseRepository(IWordMatchExerciseRepository):
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
     async def find(self, exercise_id: ExerciseId) -> WordMatchExercise:
-        session = get_session()
         q = (
             select(Exercises, ExerciseEntries)
             .join(ExerciseEntries, ExerciseEntries.exercise_id == Exercises.id)
             .where(Exercises.id == exercise_id.value)
         )
-        result = await session.execute(q)
+        result = await self.session.execute(q)
         rows = result.fetchall()
         if not rows:
             raise Exception(f"No Word Match Exercise found for entry ID: {exercise_id.value}")
@@ -33,8 +35,6 @@ class WordMatchExerciseRepository(IWordMatchExerciseRepository):
         return self._map_exercise(properties, rows[0][0], entries)
 
     async def create(self, exercise: WordMatchExercise) -> WordMatchExercise:
-        session = get_session()
-
         properties = self._props_from_exercise(exercise)
         stmt = insert(Exercises).values(
             exercise_type=exercise.type.to_number(),
@@ -42,17 +42,15 @@ class WordMatchExerciseRepository(IWordMatchExerciseRepository):
             status=exercise.status.value,
             properties=properties,
         )
-        result = await session.execute(stmt)
+        result = await self.session.execute(stmt)
 
         exercise_id = result.inserted_primary_key[0]
-        await self._insert_entries(session, exercise_id, exercise.exercise_entries)
-        await session.commit()
+        await self._insert_entries(exercise_id, exercise.exercise_entries)
+        await self.session.commit()
         exercise.id = ExerciseId(exercise_id)
         return exercise
 
     async def save(self, exercise: WordMatchExercise) -> None:
-        session = get_session()
-
         stmt = (
             update(Exercises)
             .where(Exercises.id == exercise.id.value)
@@ -63,12 +61,12 @@ class WordMatchExerciseRepository(IWordMatchExerciseRepository):
                 properties=self._props_from_exercise(exercise),
             )
         )
-        await session.execute(stmt)
-        await self._save_entries(session, exercise.get_updated_entries())
-        await session.commit()
+        await self.session.execute(stmt)
+        await self._save_entries(exercise.get_updated_entries())
+        await self.session.commit()
 
     async def _insert_entries(
-        self, session, exercise_id: int, entries: List[WordMatchExerciseEntry]
+        self, exercise_id: int, entries: List[WordMatchExerciseEntry]
     ) -> None:
         bulk = []
         for entry in entries:
@@ -84,9 +82,9 @@ class WordMatchExerciseRepository(IWordMatchExerciseRepository):
                 )
             )
         if bulk:
-            await session.execute(insert(ExerciseEntries), bulk)
+            await self.session.execute(insert(ExerciseEntries), bulk)
 
-    async def _save_entries(self, session, entries: List[WordMatchExerciseEntry]) -> None:
+    async def _save_entries(self, entries: List[WordMatchExerciseEntry]) -> None:
         for entry in entries:
             stmt = (
                 update(ExerciseEntries)
@@ -102,7 +100,7 @@ class WordMatchExerciseRepository(IWordMatchExerciseRepository):
                     order=entry.order,
                 )
             )
-            await session.execute(stmt)
+            await self.session.execute(stmt)
 
     def _props_from_exercise(self, exercise: WordMatchExercise) -> Dict[str, Any]:
         return {

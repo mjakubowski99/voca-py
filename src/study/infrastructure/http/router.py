@@ -7,7 +7,6 @@ from src.study.application.command.rate_flashcard import RateFlashcard
 
 from fastapi import Body, Depends, Path
 from core.auth import get_current_user
-from core.container import container
 from src.shared.user.iuser import IUser
 from src.study.domain.value_objects import LearningSessionId, LearningSessionStepId
 from src.study.infrastructure.http.request import CreateSessionRequest, RateFlashcardRequest
@@ -16,6 +15,8 @@ from src.study.infrastructure.http.response import LearningSessionResponse
 from fastapi import APIRouter
 from src.shared.value_objects.flashcard_deck_id import FlashcardDeckId
 from fastapi import Request
+from punq import Container
+from core.container import get_container
 
 router = APIRouter()
 
@@ -25,11 +26,11 @@ async def create_session(
     base_request: Request,
     user: IUser = Depends(get_current_user),
     request: CreateSessionRequest = Body(...),
-    create_session: CreateSessionHandler = Depends(lambda: container.resolve(CreateSessionHandler)),
-    add_step: AddNextLearningStepHandler = Depends(
-        lambda: container.resolve(AddNextLearningStepHandler)
-    ),
+    container: Container = Depends(get_container),
 ) -> ResponseWrapper[LearningSessionResponse]:
+    create_session: CreateSessionHandler = container.resolve(CreateSessionHandler)
+    add_step: AddNextLearningStepHandler = container.resolve(AddNextLearningStepHandler)
+
     session = await create_session.handle(
         CreateSession(
             user_id=user.get_id(),
@@ -55,11 +56,11 @@ async def rate_flashcard(
     session_id: int = Path(..., description="Session ID"),
     user: IUser = Depends(get_current_user),
     request: RateFlashcardRequest = Body(...),
-    rate_flashcard: RateFlashcard = Depends(lambda: container.resolve(RateFlashcard)),
-    add_step: AddNextLearningStepHandler = Depends(
-        lambda: container.resolve(AddNextLearningStepHandler)
-    ),
+    container: Container = Depends(get_container),
 ) -> ResponseWrapper[LearningSessionResponse]:
+    rate_flashcard: RateFlashcard = container.resolve(RateFlashcard)
+    add_step: AddNextLearningStepHandler = container.resolve(AddNextLearningStepHandler)
+
     for rating in request.ratings:
         await rate_flashcard.handle(user, LearningSessionStepId(session_id), rating.rating)
 

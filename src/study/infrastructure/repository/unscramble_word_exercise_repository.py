@@ -1,7 +1,5 @@
 from sqlalchemy import select, insert, update
 from sqlalchemy.exc import NoResultFound
-
-from core.db import get_session
 from core.models import Exercises, ExerciseEntries, UnscrambleWordExercises
 
 from src.shared.value_objects.flashcard_id import FlashcardId
@@ -15,11 +13,14 @@ from src.shared.models import Emoji
 from src.study.domain.value_objects import ExerciseId
 from src.study.domain.value_objects import ExerciseEntryId
 from src.shared.value_objects.user_id import UserId
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class UnscrambleWordExerciseRepository(IUnscrambleWordExerciseRepository):
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
     async def find(self, exercise_id: ExerciseId) -> UnscrambleWordExercise:
-        session = get_session()
         query = (
             select(
                 Exercises.id,
@@ -44,7 +45,7 @@ class UnscrambleWordExerciseRepository(IUnscrambleWordExerciseRepository):
             .where(Exercises.id == exercise_id.value)
         )
 
-        result = await session.execute(query)
+        result = await self.session.execute(query)
         row = result.first()
 
         if not row:
@@ -53,7 +54,6 @@ class UnscrambleWordExerciseRepository(IUnscrambleWordExerciseRepository):
         return self._map_to_domain(row)
 
     async def find_by_entry_id(self, entry_id: ExerciseEntryId) -> UnscrambleWordExercise:
-        session = get_session()
         query = (
             select(
                 Exercises.id,
@@ -78,7 +78,7 @@ class UnscrambleWordExerciseRepository(IUnscrambleWordExerciseRepository):
             .where(ExerciseEntries.id == entry_id.value)
         )
 
-        result = await session.execute(query)
+        result = await self.session.execute(query)
         row = result.first()
 
         if not row:
@@ -90,7 +90,6 @@ class UnscrambleWordExerciseRepository(IUnscrambleWordExerciseRepository):
         if not exercise.get_id().is_empty():
             raise ValueError("Cannot create exercise with already existing ID")
 
-        session = get_session()
         insert_stmt = (
             insert(Exercises)
             .values(
@@ -102,10 +101,10 @@ class UnscrambleWordExerciseRepository(IUnscrambleWordExerciseRepository):
             .returning(Exercises.id)
         )
 
-        result = await session.execute(insert_stmt)
+        result = await self.session.execute(insert_stmt)
         new_id = result.scalar_one()
 
-        await session.execute(
+        await self.session.execute(
             insert(UnscrambleWordExercises).values(
                 exercise_id=new_id,
                 word=exercise.get_word(),
@@ -119,7 +118,7 @@ class UnscrambleWordExerciseRepository(IUnscrambleWordExerciseRepository):
         exercise.id = ExerciseId(value=new_id)
 
         entry = exercise.get_exercise_entries()[0]
-        result = await session.execute(
+        result = await self.session.execute(
             insert(ExerciseEntries)
             .values(
                 exercise_id=new_id,
@@ -136,14 +135,12 @@ class UnscrambleWordExerciseRepository(IUnscrambleWordExerciseRepository):
         entry_id = result.scalar_one()
         exercise.exercise_entries[0].id = ExerciseEntryId(value=entry_id)
 
-        await session.commit()
+        await self.session.commit()
 
         return exercise
 
     async def save(self, exercise: UnscrambleWordExercise) -> None:
-        session = get_session()
-
-        await session.execute(
+        await self.session.execute(
             update(Exercises)
             .where(Exercises.id == exercise.get_id().value)
             .values(
@@ -153,7 +150,7 @@ class UnscrambleWordExerciseRepository(IUnscrambleWordExerciseRepository):
         )
 
         for entry in exercise.get_updated_entries():
-            await session.execute(
+            await self.session.execute(
                 update(ExerciseEntries)
                 .where(ExerciseEntries.id == entry.get_id().value)
                 .values(
@@ -166,7 +163,7 @@ class UnscrambleWordExerciseRepository(IUnscrambleWordExerciseRepository):
                 )
             )
 
-        await session.commit()
+        await self.session.commit()
 
     def _map_to_domain(self, row) -> UnscrambleWordExercise:
         entry_id = ExerciseEntryId(row.exercise_entry_id)

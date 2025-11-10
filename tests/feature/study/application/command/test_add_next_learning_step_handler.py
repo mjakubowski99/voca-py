@@ -1,5 +1,5 @@
 import pytest
-from core.container import container
+from punq import Container
 from src.flashcard.domain.models.owner import Owner
 from src.flashcard.domain.value_objects import SessionId
 from src.study.application.command.add_next_learning_step_handler import AddNextLearningStepHandler
@@ -14,12 +14,14 @@ from tests.factory import (
 )
 
 
-def get_handler() -> AddNextLearningStepHandler:
+@pytest.fixture
+def handler(container: Container) -> AddNextLearningStepHandler:
     return container.resolve(AddNextLearningStepHandler)
 
 
 @pytest.mark.asyncio
 async def test_add_next_learning_step_handler(
+    handler: AddNextLearningStepHandler,
     user_factory: UserFactory,
     deck_factory: FlashcardDeckFactory,
     flashcard_factory: FlashcardFactory,
@@ -27,7 +29,6 @@ async def test_add_next_learning_step_handler(
     learning_session_flashcard_factory: LearningSessionFlashcardFactory,
     unscramble_word_exercise_factory: UnscrambleWordExerciseFactory,
 ):
-    handler = get_handler()
     user = await user_factory.create_auth_user()
 
     owner = Owner.from_auth_user(user=user)
@@ -44,6 +45,7 @@ async def test_add_next_learning_step_handler(
 
 @pytest.mark.asyncio
 async def test_add_next_learning_step_handler_should_add_unscramble_word_exercise(
+    handler: AddNextLearningStepHandler,
     user_factory: UserFactory,
     deck_factory: FlashcardDeckFactory,
     flashcard_factory: FlashcardFactory,
@@ -51,7 +53,6 @@ async def test_add_next_learning_step_handler_should_add_unscramble_word_exercis
     learning_session_flashcard_factory: LearningSessionFlashcardFactory,
     unscramble_word_exercise_factory: UnscrambleWordExerciseFactory,
 ):
-    handler = get_handler()
     user = await user_factory.create_auth_user()
 
     owner = Owner.from_auth_user(user=user)

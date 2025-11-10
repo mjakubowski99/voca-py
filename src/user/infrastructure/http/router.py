@@ -2,8 +2,9 @@ from ast import List
 from fastapi import Depends, HTTPException
 from fastapi import Body
 from fastapi import APIRouter
+from punq import Container
 from core.auth import get_current_user
-from core.container import container
+from core.container import get_container
 from core.generics import ResponseWrapper
 from src.shared.user.iuser import IUser
 from src.shared.value_objects.language import Language
@@ -25,9 +26,11 @@ router = APIRouter()
 @router.post("/api/user/login", response_model=ResponseWrapper[TokenUserResource])
 async def login(
     request: LoginRequest = Body(...),
-    login_user: LoginUserHandler = Depends(lambda: container.resolve(LoginUserHandler)),
-    create_token: CreateTokenHandler = Depends(lambda: container.resolve(CreateTokenHandler)),
+    container: Container = Depends(get_container),
 ) -> ResponseWrapper[TokenUserResource]:
+    login_user: LoginUserHandler = container.resolve(LoginUserHandler)
+    create_token: CreateTokenHandler = container.resolve(CreateTokenHandler)
+
     user = await login_user.handle(request.username, request.password)
 
     if user is None:
@@ -54,8 +57,9 @@ async def login(
 @router.get("/api/user/me", response_model=ResponseWrapper[UserResource])
 async def current(
     user: IUser = Depends(get_current_user),
-    find_user: FindUserHandler = Depends(lambda: container.resolve(FindUserHandler)),
+    container: Container = Depends(get_container),
 ) -> ResponseWrapper[UserResource]:
+    find_user: FindUserHandler = container.resolve(FindUserHandler)
     user = await find_user.find_user(user.get_id())
 
     return ResponseWrapper[UserResource](
@@ -76,13 +80,13 @@ async def current(
 @router.post("/api/user/oauth/login", response_model=ResponseWrapper[TokenUserResource])
 async def oauth_login(
     request: OAuthLoginRequest = Body(...),
-    create_external_user: CreateExternalUserHandler = Depends(
-        lambda: container.resolve(CreateExternalUserHandler)
-    ),
-    find_user: FindUserHandler = Depends(lambda: container.resolve(FindUserHandler)),
-    get_oauth_user: GetOAuthUser = Depends(lambda: container.resolve(GetOAuthUser)),
-    create_token: CreateTokenHandler = Depends(lambda: container.resolve(CreateTokenHandler)),
-):
+    container: Container = Depends(get_container),
+) -> ResponseWrapper[TokenUserResource]:
+    create_external_user: CreateExternalUserHandler = container.resolve(CreateExternalUserHandler)
+    find_user: FindUserHandler = container.resolve(FindUserHandler)
+    get_oauth_user: GetOAuthUser = container.resolve(GetOAuthUser)
+    create_token: CreateTokenHandler = container.resolve(CreateTokenHandler)
+
     oauth_user = await get_oauth_user.login(
         request.user_provider, request.access_token, request.platform
     )

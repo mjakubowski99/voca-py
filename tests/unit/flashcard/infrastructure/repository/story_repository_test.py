@@ -1,10 +1,10 @@
 import pytest
+from punq import Container
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from core.models import Stories, StoryFlashcards, Flashcards
 from src.flashcard.infrastructure.repository.story_repository import StoryRepository
-from src.flashcard.infrastructure.repository.flashcard_repository import FlashcardRepository
 from src.flashcard.domain.models.story import Story
 from src.flashcard.domain.models.story_flashcard import StoryFlashcard
 from src.flashcard.domain.models.story_collection import StoryCollection
@@ -19,14 +19,19 @@ from src.shared.value_objects.story_id import StoryId
 from tests.factory import FlashcardDeckFactory, OwnerFactory
 
 
+@pytest.fixture
+def repository(container: Container) -> StoryRepository:
+    return container.resolve(StoryRepository)
+
+
 @pytest.mark.asyncio
 async def test_save_many_should_insert_stories_and_story_flashcards(
-    session: AsyncSession, owner_factory: OwnerFactory, deck_factory: FlashcardDeckFactory
+    repository: StoryRepository,
+    session: AsyncSession,
+    owner_factory: OwnerFactory,
+    deck_factory: FlashcardDeckFactory,
 ):
     # Arrange
-    flashcard_repo = FlashcardRepository()
-    repo = StoryRepository(flashcard_repo=flashcard_repo)
-
     # Fake user/deck setup
     user = await owner_factory.create_user_owner()
     deck = await deck_factory.create(user)
@@ -92,7 +97,7 @@ async def test_save_many_should_insert_stories_and_story_flashcards(
     stories = StoryCollection(stories=[story])
 
     # Act
-    await repo.save_many(stories)
+    await repository.save_many(stories)
 
     # Assert
     # Verify Stories inserted

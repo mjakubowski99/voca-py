@@ -2,7 +2,6 @@ from typing import List
 from sqlalchemy import select, update, delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import insert
-from core.db import get_session
 from core.models import LearningSessionFlashcards, LearningSessions
 from src.shared.flashcard.contracts import IFlashcardFacade
 from src.shared.value_objects.flashcard_id import FlashcardId
@@ -24,35 +23,33 @@ class LearningSessionRepository(ISessionRepository):
         self,
         unscramble_repository: UnscrambleWordExerciseRepository,
         flashcard_facade: IFlashcardFacade,
+        session: AsyncSession,
     ):
         self.unscramble_repository = unscramble_repository
         self.flashcard_facade = flashcard_facade
+        self.session = session
 
     async def update_status_by_id(
         self, session_ids: List[LearningSessionId], status: SessionStatus
     ) -> None:
-        session: AsyncSession = get_session()
         stmt = (
             update(LearningSession)
             .where(LearningSession.id.in_([s.value for s in session_ids]))
             .values(status=status.value)
         )
-        await session.execute(stmt)
-        await session.commit()
+        await self.session.execute(stmt)
+        await self.session.commit()
 
     async def set_all_owner_sessions_status(self, user_id: UserId, status: SessionStatus) -> None:
-        session: AsyncSession = get_session()
         stmt = (
             update(LearningSession)
             .where(LearningSession.user_id == user_id.value)
             .values(status=status.value)
         )
-        await session.execute(stmt)
-        await session.commit()
+        await self.session.execute(stmt)
+        await self.session.commit()
 
     async def create(self, session_obj: LearningSession) -> LearningSession:
-        session: AsyncSession = get_session()
-
         db_session = LearningSessions(
             user_id=session_obj.user_id.value,
             type=session_obj.type.value,
@@ -62,16 +59,14 @@ class LearningSessionRepository(ISessionRepository):
             device=session_obj.device,
         )
 
-        session.add(db_session)
-        await session.commit()
-        await session.refresh(db_session)
+        self.session.add(db_session)
+        await self.session.commit()
+        await self.session.refresh(db_session)
         session_obj.id = LearningSessionId(value=db_session.id)
 
         return session_obj
 
     async def save_steps(self, session_obj: LearningSession) -> None:
-        session: AsyncSession = get_session()
-
         if session_obj.new_steps:
             insert_data = [
                 {
@@ -92,10 +87,10 @@ class LearningSessionRepository(ISessionRepository):
                 .returning(LearningSessionFlashcards.id)
             )
 
-            result = await session.execute(stmt_insert)
+            result = await self.session.execute(stmt_insert)
             inserted_ids = [row[0] for row in result.fetchall()]
 
-        await session.commit()
+        await self.session.commit()
 
         for i, step in enumerate(session_obj.new_steps):
             session_obj.new_steps[i].id = LearningSessionStepId(value=inserted_ids[i])
@@ -103,9 +98,8 @@ class LearningSessionRepository(ISessionRepository):
         return session_obj
 
     async def find(self, session_id: LearningSessionId) -> LearningSession:
-        session: AsyncSession = get_session()
         stmt = select(LearningSessions).where(LearningSessions.id == session_id.value)
-        result = await session.execute(stmt)
+        result = await self.session.execute(stmt)
         session_obj = result.scalar_one_or_none()
 
         stmt = (
@@ -114,7 +108,7 @@ class LearningSessionRepository(ISessionRepository):
             .where(LearningSessionFlashcards.rating.is_(None))
             .where(LearningSessionFlashcards.is_additional.is_(False))
         )
-        result = await session.execute(stmt)
+        result = await self.session.execute(stmt)
         count = result.scalar_one()
 
         if not session_obj:
@@ -145,7 +139,7 @@ class LearningSessionRepository(ISessionRepository):
             .where(LearningSessionFlashcards.rating.is_(None))
             .where(LearningSessionFlashcards.is_additional.is_(False))
         )
-        result = await session.execute(stmt)
+        result = await self.session.execute(stmt)
         rows = result.all()
 
         for row in rows:
@@ -165,17 +159,15 @@ class LearningSessionRepository(ISessionRepository):
         return learning_session
 
     async def delete_all_for_user(self, user_id: UserId) -> None:
-        session: AsyncSession = get_session()
         stmt = delete(LearningSession).where(LearningSession.user_id == user_id.value)
-        await session.execute(stmt)
-        await session.commit()
+        await self.session.execute(stmt)
+        await self.session.commit()
 
     async def has_any_session(self, user_id: UserId) -> bool:
-        session: AsyncSession = get_session()
         stmt = select(func.count(LearningSession.id)).where(
             LearningSession.user_id == user_id.value
         )
-        result = await session.execute(stmt)
+        result = await self.session.execute(stmt)
         count = result.scalar()
         return count > 0
 
@@ -185,20 +177,18 @@ class LearningSessionRepository(ISessionRepository):
     async def update_flashcard_rating(
         self, step_id: LearningSessionStepId, rating: Rating
     ) -> FlashcardId:
-        session: AsyncSession = get_session()
-
         stmt = (
             update(LearningSessionFlashcards)
             .where(LearningSessionFlashcards.id == step_id.value)
             .values(rating=rating.value)
         )
 
-        await session.execute(stmt)
-        await session.commit()
+        await self.session.execute(stmt)
+        await self.session.commit()
 
         stmt = select(LearningSessionFlashcards.flashcard_id).where(
             LearningSessionFlashcards.id == step_id.value
         )
 
-        result = await session.execute(stmt)
+        result = await self.session.execute(stmt)
         return FlashcardId(value=result.scalar_one())

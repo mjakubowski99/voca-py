@@ -1,4 +1,6 @@
+from fastapi import Depends
 import punq
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.flashcard.application.facades.flashcard_facade import FlashcardFacade
 from src.flashcard.application.services.flashcard_poll_manager import FlashcardPollManager
@@ -75,7 +77,6 @@ from src.flashcard.application.services.sm_two.sm_two_flashcard_selector import 
     SmTwoFlashcardSelector,
 )
 from config import settings
-from typing import TypeVar, Type, Callable
 from src.flashcard.infrastructure.repository.flashcard_poll_repository import (
     FlashcardPollRepository,
 )
@@ -88,77 +89,76 @@ from src.study.infrastructure.repository.word_match_exercise_repository import (
 )
 from src.study.application.repository.contracts import IWordMatchExerciseRepository
 from src.study.application.command.skip_exercise import SkipExercise
-
-T = TypeVar("T")
-
-
-def resolve(cls: Type[T]) -> Callable[[], T]:
-    """
-    Universal FastAPI dependency resolver for anything registered in the container.
-    Example: Depends(resolve(MyHandler))
-    """
-
-    def _resolve() -> T:
-        return container.resolve(cls)
-
-    return _resolve
+from core.database import get_session
 
 
-container = punq.Container()
+def create_container(session: AsyncSession):
+    container = punq.Container()
+    container.register(AsyncSession, instance=session)
 
-container.register(FlashcardSortCriteriaFactory)
-container.register(SmTwoFlashcardRepository)
-container.register(ISmTwoFlashcardRepository, SmTwoFlashcardRepository)
-container.register(GetUserDecks)
-container.register(GetAdminDecks)
-container.register(GetDeckDetails)
-container.register(IFlashcardDeckReadRepository, FlashcardDeckReadRepository)
-container.register(FlashcardGeneratorService)
-container.register(IFlashcardGenerator, GeminiGenerator)
-container.register(DeckResolver)
-container.register(GenerateFlashcardsHandler)
-container.register(IFlashcardRepository, FlashcardRepository)
-container.register(StoryDuplicateService)
-container.register(FlashcardDuplicateService)
-container.register(FlashcardRepository)
-container.register(FlashcardReadRepository)
-container.register(FlashcardDeckReadRepository)
-container.register(FlashcardDeckRepository)
-container.register(FlashcardDuplicateRepository)
-container.register(IFlashcardDeckRepository, FlashcardDeckRepository)
-container.register(IFlashcardDuplicateRepository, FlashcardDuplicateRepository)
-container.register(IStoryRepository, StoryRepository)
-container.register(CreateExternalUserHandler)
-container.register(FindUserHandler)
-container.register(CreateTokenHandler)
-container.register(IHash, ArgonHash)
-container.register(LoginUserHandler)
-container.register(CreateUserHandler)
-container.register(IOAuthLogin, OAuthLogin)
-container.register(GetOAuthUser)
-container.register(IUserRepository, UserRepository)
-container.register(IUserFacade, UserFacade)
-container.register(ITokenRepository, instance=JwtTokenRepository(secret_key=settings.jwt_secret))
+    container.register(FlashcardSortCriteriaFactory)
+    container.register(SmTwoFlashcardRepository)
+    container.register(ISmTwoFlashcardRepository, SmTwoFlashcardRepository)
+    container.register(GetUserDecks)
+    container.register(GetAdminDecks)
+    container.register(GetDeckDetails)
+    container.register(IFlashcardDeckReadRepository, FlashcardDeckReadRepository)
+    container.register(FlashcardGeneratorService)
+    container.register(IFlashcardGenerator, GeminiGenerator)
+    container.register(DeckResolver)
+    container.register(GenerateFlashcardsHandler)
+    container.register(IFlashcardRepository, FlashcardRepository)
+    container.register(StoryDuplicateService)
+    container.register(FlashcardDuplicateService)
+    container.register(FlashcardRepository)
+    container.register(FlashcardReadRepository)
+    container.register(FlashcardDeckReadRepository)
+    container.register(FlashcardDeckRepository)
+    container.register(FlashcardDuplicateRepository)
+    container.register(IFlashcardDeckRepository, FlashcardDeckRepository)
+    container.register(IFlashcardDuplicateRepository, FlashcardDuplicateRepository)
+    container.register(IStoryRepository, StoryRepository)
+    container.register(CreateExternalUserHandler)
+    container.register(FindUserHandler)
+    container.register(CreateTokenHandler)
+    container.register(IHash, ArgonHash)
+    container.register(LoginUserHandler)
+    container.register(CreateUserHandler)
+    container.register(IOAuthLogin, OAuthLogin)
+    container.register(GetOAuthUser)
+    container.register(IUserRepository, UserRepository)
+    container.register(IUserFacade, UserFacade)
+    container.register(
+        ITokenRepository, instance=JwtTokenRepository(secret_key=settings.jwt_secret)
+    )
 
-container.register(GenerateFlashcardsHandler)
-container.register(UnscrambleWordExerciseRepository)
-container.register(LearningSessionRepository)
-container.register(ISessionRepository, LearningSessionRepository)
+    container.register(GenerateFlashcardsHandler)
+    container.register(UnscrambleWordExerciseRepository)
+    container.register(LearningSessionRepository)
+    container.register(ISessionRepository, LearningSessionRepository)
 
-container.register(IFlashcardFacade, FlashcardFacade)
-container.register(IFlashcardSelector, SmTwoFlashcardSelector)
-container.register(IFlashcardPollRepository, FlashcardPollRepository)
-container.register(IRepetitionAlgorithm, SmTwoRepetitionAlgorithm)
-container.register(FlashcardPollUpdater)
-container.register(FlashcardPollManager)
-container.register(FlashcardPollResolver)
-container.register(CreateSessionHandler)
-container.register(FlashcardFacade)
-container.register(AddNextLearningStepHandler)
-container.register(ExerciseFactory)
-container.register(IUnscrambleWordExerciseRepository, UnscrambleWordExerciseRepository)
-container.register(RateFlashcard)
-container.register(WordMatchExerciseRepository)
-container.register(IWordMatchExerciseRepository, WordMatchExerciseRepository)
-container.register(AnswerExercise)
-container.register(SkipExercise)
+    container.register(IFlashcardFacade, FlashcardFacade)
+    container.register(IFlashcardSelector, SmTwoFlashcardSelector)
+    container.register(IFlashcardPollRepository, FlashcardPollRepository)
+    container.register(IRepetitionAlgorithm, SmTwoRepetitionAlgorithm)
+    container.register(FlashcardPollUpdater)
+    container.register(FlashcardPollManager)
+    container.register(FlashcardPollResolver)
+    container.register(CreateSessionHandler)
+    container.register(FlashcardFacade)
+    container.register(AddNextLearningStepHandler)
+    container.register(ExerciseFactory)
+    container.register(IUnscrambleWordExerciseRepository, UnscrambleWordExerciseRepository)
+    container.register(RateFlashcard)
+    container.register(WordMatchExerciseRepository)
+    container.register(IWordMatchExerciseRepository, WordMatchExerciseRepository)
+    container.register(AnswerExercise)
+    container.register(SkipExercise)
+    container.register(StoryRepository)
+    container.register(IStoryRepository, StoryRepository)
+
+    return container
+
+
+def get_container(session: AsyncSession = Depends(get_session)) -> punq.Container:
+    return create_container(session)

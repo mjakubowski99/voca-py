@@ -9,12 +9,14 @@ from src.flashcard.application.dto.flashcard_read import FlashcardRead
 from src.flashcard.application.dto.general_rating import GeneralRating
 from src.shared.enum import LanguageLevel
 from src.shared.value_objects.language import Language
-from core.db import get_session
 from core.models import Flashcards as FlashcardDB, LearningSessionFlashcards, LearningSessions
 from src.shared.value_objects.user_id import UserId
 
 
 class FlashcardReadRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
     async def find_flashcard_stats(
         self,
         front_lang: Language,
@@ -23,11 +25,9 @@ class FlashcardReadRepository:
         user_id: Optional[int] = None,
         flashcard_owner_type: Optional[FlashcardOwnerType] = None,
     ) -> List[dict]:
-        session: AsyncSession = get_session()
-
         query = select(
             FlashcardDB.rating, func.count(FlashcardDB.rating).label("rating_count")
-        ).select_from(FlashcardDB)
+        ).select_from(self.session.query(FlashcardDB))
 
         # Filtry językowe
         query = query.where(FlashcardDB.front_lang == front_lang.value)
@@ -62,7 +62,7 @@ class FlashcardReadRepository:
         query = query.where(FlashcardDB.rating.isnot(None))
         query = query.group_by(FlashcardDB.rating)
 
-        result = await session.execute(query)
+        result = await self.session.execute(query)
         rows = result.all()
 
         total_count = sum(row.rating_count for row in rows)
@@ -92,9 +92,8 @@ class FlashcardReadRepository:
     ) -> dict:
         flashcards = await self.search(user_id, front_lang, back_lang, search, page, per_page)
 
-        session: AsyncSession = get_session()
         count_stmt = select(func.count()).where(FlashcardDB.user_id == user_id)
-        result = await session.execute(count_stmt)
+        result = await self.session.execute(count_stmt)
         total_count = result.scalar_one()
 
         return {
@@ -106,11 +105,9 @@ class FlashcardReadRepository:
         }
 
     async def get_count_in_deck(self, deck_id: FlashcardDeckId) -> int:
-        session: AsyncSession = get_session()
-
         stmt = select(func.count()).where(FlashcardDB.flashcard_deck_id == deck_id.value)
 
-        result = await session.execute(stmt)
+        result = await self.session.execute(stmt)
         count = result.scalar_one()  # returns int
 
         return count
@@ -126,8 +123,6 @@ class FlashcardReadRepository:
         page: int = 1,
         per_page: int = 20,
     ) -> List[FlashcardRead]:
-        session: AsyncSession = get_session()
-
         rating_max = 5  # replace with Rating::maxRating() equivalent if dynamic
         offset = (page - 1) * per_page
 
@@ -188,7 +183,7 @@ class FlashcardReadRepository:
 
         sql += " ORDER BY f.front_word ASC LIMIT :limit OFFSET :offset"
 
-        result = await session.execute(text(sql), params)
+        result = await self.session.execute(text(sql), params)
         rows = result.mappings().all()  # dict-like rows
 
         flashcards: List[FlashcardRead] = []

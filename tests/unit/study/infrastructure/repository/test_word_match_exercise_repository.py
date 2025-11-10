@@ -1,3 +1,4 @@
+from punq import Container
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,12 +19,15 @@ from src.study.infrastructure.repository.word_match_exercise_repository import (
 from tests.factory import ExerciseEntryFactory, ExerciseFactory, UserFactory
 
 
-def get_repo() -> WordMatchExerciseRepository:
+@pytest.fixture
+def repository(container: Container) -> WordMatchExerciseRepository:
     return container.resolve(WordMatchExerciseRepository)
 
 
 @pytest.mark.asyncio
-async def test_create_word_match_exercise(user_factory: UserFactory, assert_db_has):
+async def test_create_word_match_exercise(
+    repository: WordMatchExerciseRepository, user_factory: UserFactory, assert_db_has
+):
     user = await user_factory.create_auth_user()
     entries = [
         WordMatchExerciseEntry(
@@ -63,9 +67,7 @@ async def test_create_word_match_exercise(user_factory: UserFactory, assert_db_h
         options=["dog", "cat", "bird"],
         story_id=None,
     )
-    repo = get_repo()
-
-    exercise = await repo.create(word_match)
+    exercise = await repository.create(word_match)
     assert exercise.id.value != 0
 
     await assert_db_has(
@@ -98,6 +100,7 @@ async def test_create_word_match_exercise(user_factory: UserFactory, assert_db_h
 
 @pytest.mark.asyncio
 async def test_find_word_match_exercise(
+    repository: WordMatchExerciseRepository,
     assert_db_has,
     user_factory: UserFactory,
     exercise_factory: ExerciseFactory,
@@ -133,9 +136,8 @@ async def test_find_word_match_exercise(
     (await exercise_entry_factory.create(exercise, order=0, correct_answer="fox", score=0.1),)
     (await exercise_entry_factory.create(exercise, order=1, correct_answer="dog", score=0.1),)
 
-    repo = get_repo()
+    found = await repository.find(ExerciseId(exercise.id))
 
-    found = await repo.find(ExerciseId(exercise.id))
     assert found.id.value == exercise.id
     assert found.user_id.value == exercise.user_id
     assert found.status == ExerciseStatus.IN_PROGRESS
@@ -155,6 +157,7 @@ async def test_find_word_match_exercise(
 
 @pytest.mark.asyncio
 async def test_save_word_match_exercise(
+    repository: WordMatchExerciseRepository,
     assert_db_has,
     user_factory: UserFactory,
     exercise_factory: ExerciseFactory,
@@ -189,8 +192,6 @@ async def test_save_word_match_exercise(
         order=0,
     )
 
-    repo = get_repo()
-
     obj = WordMatchExercise(
         story_id=None,
         exercise_id=ExerciseId(value=exercise.id),
@@ -218,7 +219,7 @@ async def test_save_word_match_exercise(
         options=["A", "B"],
     )
 
-    await repo.save(obj)
+    await repository.save(exercise)
 
     await assert_db_has(Exercises, {"id": exercise.id, "status": ExerciseStatus.DONE.value})
     await assert_db_has(
@@ -234,9 +235,7 @@ async def test_save_word_match_exercise(
 
 
 @pytest.mark.asyncio
-async def test_find_raises_if_not_found():
-    repo = get_repo()
-
+async def test_find_raises_if_not_found(repository: WordMatchExerciseRepository):
     with pytest.raises(Exception) as exc:
-        await repo.find(ExerciseId(123456789))
+        await repository.find(ExerciseId(123456789))
     assert "No Word Match Exercise found for entry ID: 123456789" in str(exc.value)

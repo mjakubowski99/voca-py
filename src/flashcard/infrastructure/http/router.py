@@ -18,12 +18,13 @@ from src.flashcard.infrastructure.http.response import (
     FlashcardDecksResource,
 )
 from src.shared.user.iuser import IUser
-from core.container import resolve
 from src.flashcard.infrastructure.http.request import (
     GenerateFlashcards,
     GetAdminDecksRequest,
     GetUserDecksRequest,
 )
+from punq import Container
+from core.container import get_container
 
 router = APIRouter(tags=["Flashcard"])
 
@@ -32,8 +33,10 @@ router = APIRouter(tags=["Flashcard"])
 async def get_user_decks(
     request: GetUserDecksRequest = Depends(get_user_decks_query),
     user: IUser = Depends(get_current_user),
-    get_decks: GetUserDecks = Depends(resolve(GetUserDecks)),
+    container: Container = Depends(get_container),
 ) -> ResponseWrapper[FlashcardDecksResource]:
+    get_decks: GetUserDecks = container.resolve(GetUserDecks)
+
     decks = await get_decks.get(user, request.search, request.page, request.per_page)
 
     return user_flashcard_deck_resource_mapper(request, decks)
@@ -43,8 +46,9 @@ async def get_user_decks(
 async def get_admin_decks(
     request: GetAdminDecksRequest = Depends(get_admin_decks_query),
     user: IUser = Depends(get_current_user),
-    get_decks: GetAdminDecks = Depends(resolve(GetAdminDecks)),
+    container: Container = Depends(get_container),
 ) -> ResponseWrapper[FlashcardDecksResource]:
+    get_decks: GetAdminDecks = container.resolve(GetAdminDecks)
     decks = await get_decks.get(
         user, request.search, request.language_level, request.page, request.per_page
     )
@@ -56,9 +60,11 @@ async def get_admin_decks(
 async def generate_flashcards(
     user: IUser = Depends(get_current_user),
     request: GenerateFlashcards = Body(...),
-    generate_flashcards: GenerateFlashcardsHandler = Depends(resolve(GenerateFlashcardsHandler)),
-    get_deck: GetDeckDetails = Depends(resolve(GetDeckDetails)),
+    container: Container = Depends(get_container),
 ) -> ResponseWrapper[DeckDetailsResponse]:
+    generate_flashcards: GenerateFlashcardsHandler = container.resolve(GenerateFlashcardsHandler)
+    get_deck: GetDeckDetails = container.resolve(GetDeckDetails)
+
     result = await generate_flashcards.handle(
         request.to_command(user.get_id(), user.get_user_language(), user.get_learning_language()),
         15,

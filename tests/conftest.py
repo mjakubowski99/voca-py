@@ -1,153 +1,184 @@
-import uuid
-
-from rich.table import Table
-from core.db import get_session, init_db, close_db, set_db_session_context
-from httpx import ASGITransport, AsyncClient
+from punq import Container
 import pytest
-from sqlalchemy.ext.asyncio import (
-    AsyncEngine,
-    AsyncSession,
-    async_sessionmaker,
-    create_async_engine,
-)
-from sqlalchemy.sql import select, text
-from config import settings
-from src.main import app
+from rich.console import Console
+from rich.table import Table
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from httpx import AsyncClient, ASGITransport
+from sqlalchemy import event
 from core.models import Base
-from src.shared.util.hash import IHash
-from core.container import container
+from src.main import app
+from core.database import get_session
+from core.container import create_container
+from config import settings
 from tests.client import HttpClient
 from tests.factory import (
-    ExerciseEntryFactory,
-    ExerciseFactory,
-    FlashcardPollItemFactory,
-    LearningSessionFactory,
-    LearningSessionFlashcardFactory,
-    SmTwoFlashcardsFactory,
-    UnscrambleWordExerciseFactory,
-    WordMatchExerciseFactory,
     UserFactory,
     AdminFactory,
     OwnerFactory,
     FlashcardDeckFactory,
     FlashcardFactory,
+    SmTwoFlashcardsFactory,
+    FlashcardPollItemFactory,
+    ExerciseFactory,
+    ExerciseEntryFactory,
+    UnscrambleWordExerciseFactory,
+    WordMatchExerciseFactory,
+    LearningSessionFactory,
+    LearningSessionFlashcardFactory,
 )
+from src.shared.util.hash import IHash
 from tests.asserts import *
-from rich.console import Console
 
 console = Console(force_terminal=True)
-
 TEST_DB_URL = settings.database_url
 
 
+# ---------------------------
+# Backend for anyio / asyncio
+# ---------------------------
 @pytest.fixture
 def anyio_backend() -> str:
     return "asyncio"
 
 
+# ---------------------------
+# Console dumping helper
+# ---------------------------
 @pytest.fixture(autouse=True)
 def dump(capsys):
-    """Fixture that forces output even with capture enabled."""
-
     def _dump(value):
-        # Temporarily disable capture
         with capsys.disabled():
-            console.print()  # Force new line
+            console.print()
             console.print(value, style="bold green")
 
     return _dump
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def dump_db(dump, session):
-    """
-    Fixture to dump data from a single table using the default dump function.
-    Usage:
-        await dump_db(session, Flashcards)
-    """
-
     async def _dump_db(model: type, limit: int = 20):
-        result = await session.execute(select(model).limit(limit))
+        result = await session.execute(model.select().limit(limit))
         rows = result.scalars().all()
-
         if not rows:
             dump(f"No data found in {model.__tablename__}")
             return
-
         table = Table(title=f"Dump of {model.__tablename__}")
         for column in model.__table__.columns:
             table.add_column(column.name, style="cyan", overflow="fold")
-
         for row in rows:
             table.add_row(*(str(getattr(row, col.name)) for col in model.__table__.columns))
-
         dump(table)
 
     return _dump_db
 
 
-# Separate engine to seed data for test
-@pytest.fixture
-def test_engine() -> AsyncEngine:
-    return create_async_engine(TEST_DB_URL, echo=True)
+# ---------------------------
+# Engine / Session fixtures
+# ---------------------------
+@pytest.fixture(scope="session")
+def test_engine():
+    return create_async_engine(TEST_DB_URL, echo=False)
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def async_session_maker(test_engine) -> async_sessionmaker[AsyncSession]:
     return async_sessionmaker(bind=test_engine, expire_on_commit=False)
 
 
-@pytest.fixture
-async def session(async_session_maker) -> AsyncSession:
-    async with async_session_maker() as session:
-        yield session
-
-
-@pytest.fixture(autouse=True)
-async def refresh_database(test_engine):
+@pytest.fixture(scope="session", autouse=True)
+async def prepare_database(test_engine):
+    """
+    Create tables if they don't exist and truncate all tables
+    once before the test session starts.
+    """
     async with test_engine.begin() as conn:
+        # Create tables
         await conn.run_sync(Base.metadata.create_all)
 
-    async with test_engine.begin() as conn:
+        # Truncate all tables
         table_names = ", ".join(
             [
-                f'"{table.schema}"."{table.name}"' if table.schema else f'"{table.name}"'
-                for table in Base.metadata.sorted_tables
+                f'"{t.schema}"."{t.name}"' if t.schema else f'"{t.name}"'
+                for t in Base.metadata.sorted_tables
             ]
         )
-
         if table_names:
             await conn.execute(text(f"TRUNCATE TABLE {table_names} RESTART IDENTITY CASCADE;"))
 
-    yield
-
-
-# Fixture to init application database
-@pytest.fixture(autouse=True)
-async def init_database():
-    set_db_session_context(uuid.uuid4())
-    await init_db()
-    yield
-    await get_session().close()
-    await close_db()
+    yield  # Database prepared for tests
 
 
 @pytest.fixture
-async def client(monkeypatch) -> HttpClient:
-    """Client with authentication support."""
+async def session():
+    # Create engine per test loop
+    engine = create_async_engine(TEST_DB_URL, echo=True)
+    async_session = async_sessionmaker(engine, expire_on_commit=False)
+
+    # Create tables if they don't exist
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    # Open a connection and a transaction
+    async with engine.connect() as conn:
+        trans = await conn.begin()  # Outer transaction
+        try:
+            # Start a nested transaction (SAVEPOINT)
+            async with async_session(bind=conn) as session:
+                nested = await session.begin_nested()
+
+                # Listen for session commits to restart SAVEPOINT
+                @event.listens_for(session.sync_session, "after_transaction_end")
+                def restart_savepoint(sess, trans_):
+                    if trans_.nested and not trans_.is_active:
+                        # restart nested transaction after commit
+                        sess.begin_nested()
+
+                yield session
+
+                # Nested rollback happens automatically
+        finally:
+            await trans.rollback()
+            await conn.close()
+
+    await engine.dispose()
+
+
+@pytest.fixture
+def container(session: AsyncSession) -> Container:
+    return create_container(session)
+
+
+# ---------------------------
+# Application / feature test client
+# ---------------------------
+@pytest.fixture
+async def test_app(session: AsyncSession):
+    """Override FastAPI get_session dependency to use test session."""
+
+    async def override_get_session():
+        yield session
+
+    app.dependency_overrides[get_session] = override_get_session
+    yield app
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+async def client(test_app, monkeypatch):
+    """HTTP client using the app with overridden session."""
     async with AsyncClient(
-        transport=ASGITransport(app=app),
+        transport=ASGITransport(app=test_app),
         base_url="http://localhost",
     ) as async_client:
-        auth_client = HttpClient(async_client, monkeypatch)
-        yield auth_client
-        # Cleanup
-        app.dependency_overrides.clear()
+        yield HttpClient(client=async_client, monkeypatch=monkeypatch)
 
 
+# ---------------------------
+# Hasher and factories
+# ---------------------------
 @pytest.fixture
-def hasher() -> IHash:
-    """Fixture zwracająca implementację interfejsu IHash."""
+def hasher(container: Container) -> IHash:
     return container.resolve(IHash)
 
 

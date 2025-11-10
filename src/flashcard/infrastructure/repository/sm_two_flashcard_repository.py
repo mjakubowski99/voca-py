@@ -4,7 +4,6 @@ from typing import List, Optional
 from sqlalchemy import select, or_, text, update, insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.db import get_session
 from core.models import SmTwoFlashcards as SmTwoFlashcardsTable
 from src.flashcard.application.repository.contracts import (
     FlashcardSortCriteria,
@@ -36,27 +35,26 @@ from decimal import Decimal
 
 
 class SmTwoFlashcardRepository(ISmTwoFlashcardRepository):
-    def __init__(self, criteria_factory: FlashcardSortCriteriaFactory):
+    def __init__(self, criteria_factory: FlashcardSortCriteriaFactory, session: AsyncSession):
         self.criteria_factory = criteria_factory
+        self.session = session
 
     async def reset_repetitions_in_session(self, user_id: UserId) -> None:
-        session: AsyncSession = get_session()
-        await session.execute(
+        await self.session.execute(
             update(SmTwoFlashcardsTable)
             .where(SmTwoFlashcardsTable.user_id == user_id.value)
             .where(SmTwoFlashcardsTable.repetitions_in_session > 0)
             .values(repetitions_in_session=0)
         )
-        await session.commit()
+        await self.session.commit()
 
     async def find_many(self, user_id: UserId, flashcard_ids: List[FlashcardId]) -> SmTwoFlashcards:
-        session: AsyncSession = get_session()
         query = (
             select(SmTwoFlashcardsTable)
             .where(SmTwoFlashcardsTable.user_id == user_id.value)
             .where(SmTwoFlashcardsTable.flashcard_id.in_([f.value for f in flashcard_ids]))
         )
-        result = await session.execute(query)
+        result = await self.session.execute(query)
         rows = result.scalars().all()
         mapped = [self._map_sm_two(row) for row in rows]
         return SmTwoFlashcards(sm_two_flashcards=mapped)
@@ -64,7 +62,6 @@ class SmTwoFlashcardRepository(ISmTwoFlashcardRepository):
     from decimal import Decimal
 
     async def save_many(self, sm_two_flashcards: SmTwoFlashcards) -> None:
-        session: AsyncSession = get_session()
         now = datetime.now(timezone.utc).replace(tzinfo=None)
 
         for flashcard in sm_two_flashcards.all():
@@ -73,7 +70,7 @@ class SmTwoFlashcardRepository(ISmTwoFlashcardRepository):
                 .where(SmTwoFlashcardsTable.flashcard_id == flashcard.flashcard_id.value)
                 .where(SmTwoFlashcardsTable.user_id == flashcard.user_id.value)
             )
-            result = await session.execute(stmt)
+            result = await self.session.execute(stmt)
             existing = result.scalar_one_or_none()
 
             # Konwertujemy float na Decimal przed zapisem
@@ -81,7 +78,7 @@ class SmTwoFlashcardRepository(ISmTwoFlashcardRepository):
             repetition_interval = Decimal(str(min(flashcard.repetition_interval, 9999)))
 
             if existing is None:
-                await session.execute(
+                await self.session.execute(
                     insert(SmTwoFlashcardsTable).values(
                         flashcard_id=flashcard.flashcard_id.value,
                         user_id=flashcard.user_id.value,
@@ -96,7 +93,7 @@ class SmTwoFlashcardRepository(ISmTwoFlashcardRepository):
                     )
                 )
             else:
-                await session.execute(
+                await self.session.execute(
                     update(SmTwoFlashcardsTable)
                     .where(SmTwoFlashcardsTable.flashcard_id == flashcard.flashcard_id.value)
                     .where(SmTwoFlashcardsTable.user_id == flashcard.user_id.value)
@@ -111,7 +108,7 @@ class SmTwoFlashcardRepository(ISmTwoFlashcardRepository):
                     )
                 )
 
-        await session.commit()
+        await self.session.commit()
 
     async def get_next_flashcards(
         self,
@@ -126,7 +123,6 @@ class SmTwoFlashcardRepository(ISmTwoFlashcardRepository):
         back: Language,
         deck_id: Optional[FlashcardDeckId] = None,
     ) -> List[Flashcard]:
-        session: AsyncSession = get_session()
         flashcard_limit = max(3, int(0.1 * cards_per_session))
 
         sort_sql = [self.criteria_factory.make(s).apply() for s in sort_criteria]
@@ -188,7 +184,7 @@ class SmTwoFlashcardRepository(ISmTwoFlashcardRepository):
 
         query = query.limit(limit).order_by(*order_by_clause)
 
-        result = await session.execute(query)
+        result = await self.session.execute(query)
         rows = result.all()
 
         # Map rows to Flashcard domain objects

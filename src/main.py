@@ -1,7 +1,10 @@
 from contextlib import asynccontextmanager
-from core.db import init_db, close_db
-from fastapi import FastAPI, Response
-from core.db_session import db_session
+from typing import AsyncGenerator, Optional
+
+from sqlalchemy.ext.asyncio import AsyncSession
+from core.database import Database
+from fastapi import Depends, FastAPI, Response
+from core.container import create_container
 from core.logging import exception_handler, log_response_time
 from src.user.infrastructure.http.router import router as user_router
 from src.flashcard.infrastructure.http.router import router as flashcard_router
@@ -10,22 +13,25 @@ import uvicorn
 from starlette.requests import Request
 from core.open_api import custom_openapi
 from core.logging import queue_listener
+from config import settings
+from punq import Container
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await init_db()
+    global db
+
+    db = Database(settings.database_url)
+
     yield
-    await close_db()
+
+    if db:
+        await db.close()
+
     queue_listener.stop()
 
 
 app = FastAPI(lifespan=lifespan)
-
-
-@app.middleware("http")
-async def db_session_middleware(request: Request, call_next) -> Response:
-    return await db_session(request, call_next)
 
 
 @app.middleware("http")

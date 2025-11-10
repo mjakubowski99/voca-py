@@ -1,4 +1,5 @@
 import pytest
+from punq import Container
 from core.models import FlashcardDecks
 from src.flashcard.domain.models.deck import Deck
 from src.flashcard.domain.models.owner import Owner
@@ -6,16 +7,17 @@ from src.flashcard.domain.value_objects import FlashcardDeckId
 from src.flashcard.infrastructure.repository.flashcard_duplicate_repository import (
     FlashcardDuplicateRepository,
 )
-from core.container import container
 from tests.factory import FlashcardDeckFactory, FlashcardFactory, OwnerFactory
 
 
-def get_duplicate_repo() -> FlashcardDuplicateRepository:
+@pytest.fixture
+def repository(container: Container) -> FlashcardDuplicateRepository:
     return container.resolve(FlashcardDuplicateRepository)
 
 
 @pytest.mark.asyncio
 async def test_get_already_saved_front_words(
+    repository: FlashcardDuplicateRepository,
     owner_factory: OwnerFactory,
     deck_factory: FlashcardDeckFactory,
     flashcard_factory: FlashcardFactory,
@@ -29,7 +31,7 @@ async def test_get_already_saved_front_words(
         await flashcard_factory.create(deck=deck, owner=owner, front_word=word)
 
     # Test duplicate repository
-    duplicates = await get_duplicate_repo().get_already_saved_front_words(
+    duplicates = await repository.get_already_saved_front_words(
         FlashcardDeckId(value=deck.id), ["banana", "Durian", "APPLE"]
     )
 
@@ -39,6 +41,7 @@ async def test_get_already_saved_front_words(
 
 @pytest.mark.asyncio
 async def test_get_random_front_word_initial_letters(
+    repository: FlashcardDuplicateRepository,
     owner_factory: OwnerFactory,
     deck_factory: FlashcardDeckFactory,
     flashcard_factory: FlashcardFactory,
@@ -53,7 +56,7 @@ async def test_get_random_front_word_initial_letters(
         await flashcard_factory.create(deck=deck, owner=owner, front_word=word)
 
     # Test random initial letters
-    letters = await get_duplicate_repo().get_random_front_word_initial_letters(
+    letters = await repository.get_random_front_word_initial_letters(
         FlashcardDeckId(value=deck.id), limit=3
     )
 

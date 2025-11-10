@@ -21,8 +21,9 @@ from src.flashcard.application.dto.owner_deck_read import OwnerDeckRead
 
 
 class FlashcardDeckReadRepository(IFlashcardDeckReadRepository):
-    def __init__(self, flashcard_repository: FlashcardReadRepository):
+    def __init__(self, session: AsyncSession, flashcard_repository: FlashcardReadRepository):
         self.flashcard_repository = flashcard_repository
+        self.session = session
 
     async def find_details(
         self,
@@ -98,7 +99,7 @@ class FlashcardDeckReadRepository(IFlashcardDeckReadRepository):
             last_learnt_subq.label("last_learnt_at"),
         ).filter(FlashcardDecks.id == deck_id.value)
 
-        result = await get_session().execute(query)
+        result = await self.session.execute(query)
         deck_row = result.first()
         if not deck_row:
             return None
@@ -147,7 +148,7 @@ class FlashcardDeckReadRepository(IFlashcardDeckReadRepository):
             .group_by(Flashcards.flashcard_deck_id)
         )
 
-        result = await get_session().execute(query)
+        result = await self.session.execute(query)
         rows = result.all()
 
         return {row.flashcard_deck_id: row.total_avg_rating for row in rows}
@@ -173,111 +174,107 @@ class FlashcardDeckReadRepository(IFlashcardDeckReadRepository):
         """
         Equivalent of PHP getAdminDecks()
         """
-        async with get_session() as session:
-            # Subqueries for most frequent language level
-            most_freq_lvl_subq = (
-                select(Flashcards.flashcard_deck_id, Flashcards.language_level)
-                .filter(Flashcards.front_lang == front_lang.value)
-                .filter(Flashcards.back_lang == back_lang.value)
-                .group_by(Flashcards.flashcard_deck_id, Flashcards.language_level)
-                .order_by(desc(func.count(Flashcards.id)))
-                .limit(1)
-                .subquery()
+        # Subqueries for most frequent language level
+        most_freq_lvl_subq = (
+            select(Flashcards.flashcard_deck_id, Flashcards.language_level)
+            .filter(Flashcards.front_lang == front_lang.value)
+            .filter(Flashcards.back_lang == back_lang.value)
+            .group_by(Flashcards.flashcard_deck_id, Flashcards.language_level)
+            .order_by(desc(func.count(Flashcards.id)))
+            .limit(1)
+            .subquery()
+        )
+
+        # Subquery for flashcards count
+        flashcards_count_subq = (
+            select(
+                Flashcards.flashcard_deck_id,
+                func.count(Flashcards.id).label("flashcards_count"),
+            )
+            .group_by(Flashcards.flashcard_deck_id)
+            .subquery()
+        )
+
+        # Subquery for last learnt
+        last_learnt_subq = (
+            select(
+                Flashcards.flashcard_deck_id,
+                func.max(LearningSessionFlashcards.updated_at).label("last_learnt_at"),
+            )
+            .join(
+                LearningSessions,
+                LearningSessions.id == LearningSessionFlashcards.learning_session_id,
+            )
+            .join(Flashcards, Flashcards.id == LearningSessionFlashcards.flashcard_id)
+            .filter(LearningSessions.user_id == user_id.value)
+            .group_by(Flashcards.flashcard_deck_id)
+            .subquery()
+        )
+
+        # Base query
+        query = (
+            select(
+                FlashcardDecks,
+                flashcards_count_subq.c.flashcards_count,
+                last_learnt_subq.c.last_learnt_at,
+                most_freq_lvl_subq.c.language_level.label("most_frequent_language_level"),
+            )
+            .join(
+                flashcards_count_subq,
+                flashcards_count_subq.c.flashcard_deck_id == FlashcardDecks.id,
+                isouter=True,
+            )
+            .join(
+                last_learnt_subq,
+                last_learnt_subq.c.flashcard_deck_id == FlashcardDecks.id,
+                isouter=True,
+            )
+            .join(
+                most_freq_lvl_subq,
+                most_freq_lvl_subq.c.flashcard_deck_id == FlashcardDecks.id,
+                isouter=True,
+            )
+            .filter(
+                FlashcardDecks.admin_id.isnot(None),
+                FlashcardDecks.user_id.is_(None),
+            )
+        )
+
+        if level:
+            query = query.filter(FlashcardDecks.default_language_level == level.value)
+        if search:
+            query = query.filter(func.lower(FlashcardDecks.name).like(f"%{search.lower()}%"))
+
+        query = query.order_by(desc(FlashcardDecks.created_at), FlashcardDecks.name.asc())
+        query = query.limit(per_page).offset((page - 1) * per_page)
+
+        result = await self.session.execute(query)
+        rows = result.all()
+
+        rating_stats = await self.get_rating_stats([row.FlashcardDecks.id for row in rows], user_id)
+
+        decks: list[owner_deck_read] = []
+        for row in rows:
+            deck = row.FlashcardDecks
+            total_avg = rating_stats.get(deck.id, 0.0)
+            avg_rating = (
+                (total_avg / (row.flashcards_count * Rating.max_rating()) * 100.0)
+                if row.flashcards_count
+                else 0.0
+            )
+            decks.append(
+                OwnerDeckRead(
+                    id=FlashcardDeckId(deck.id),
+                    name=deck.name,
+                    language_level=row.most_frequent_language_level or deck.default_language_level,
+                    flashcards_count=row.flashcards_count or 0,
+                    rating_percentage=avg_rating,
+                    last_learnt_at=row.last_learnt_at,
+                    owner_type=FlashcardOwnerType.ADMIN,
+                )
             )
 
-            # Subquery for flashcards count
-            flashcards_count_subq = (
-                select(
-                    Flashcards.flashcard_deck_id,
-                    func.count(Flashcards.id).label("flashcards_count"),
-                )
-                .group_by(Flashcards.flashcard_deck_id)
-                .subquery()
-            )
-
-            # Subquery for last learnt
-            last_learnt_subq = (
-                select(
-                    Flashcards.flashcard_deck_id,
-                    func.max(LearningSessionFlashcards.updated_at).label("last_learnt_at"),
-                )
-                .join(
-                    LearningSessions,
-                    LearningSessions.id == LearningSessionFlashcards.learning_session_id,
-                )
-                .join(Flashcards, Flashcards.id == LearningSessionFlashcards.flashcard_id)
-                .filter(LearningSessions.user_id == user_id.value)
-                .group_by(Flashcards.flashcard_deck_id)
-                .subquery()
-            )
-
-            # Base query
-            query = (
-                select(
-                    FlashcardDecks,
-                    flashcards_count_subq.c.flashcards_count,
-                    last_learnt_subq.c.last_learnt_at,
-                    most_freq_lvl_subq.c.language_level.label("most_frequent_language_level"),
-                )
-                .join(
-                    flashcards_count_subq,
-                    flashcards_count_subq.c.flashcard_deck_id == FlashcardDecks.id,
-                    isouter=True,
-                )
-                .join(
-                    last_learnt_subq,
-                    last_learnt_subq.c.flashcard_deck_id == FlashcardDecks.id,
-                    isouter=True,
-                )
-                .join(
-                    most_freq_lvl_subq,
-                    most_freq_lvl_subq.c.flashcard_deck_id == FlashcardDecks.id,
-                    isouter=True,
-                )
-                .filter(
-                    FlashcardDecks.admin_id.isnot(None),
-                    FlashcardDecks.user_id.is_(None),
-                )
-            )
-
-            if level:
-                query = query.filter(FlashcardDecks.default_language_level == level.value)
-            if search:
-                query = query.filter(func.lower(FlashcardDecks.name).like(f"%{search.lower()}%"))
-
-            query = query.order_by(desc(FlashcardDecks.created_at), FlashcardDecks.name.asc())
-            query = query.limit(per_page).offset((page - 1) * per_page)
-
-            result = await session.execute(query)
-            rows = result.all()
-
-            rating_stats = await self.get_rating_stats(
-                [row.FlashcardDecks.id for row in rows], user_id
-            )
-
-            decks: list[owner_deck_read] = []
-            for row in rows:
-                deck = row.FlashcardDecks
-                total_avg = rating_stats.get(deck.id, 0.0)
-                avg_rating = (
-                    (total_avg / (row.flashcards_count * Rating.max_rating()) * 100.0)
-                    if row.flashcards_count
-                    else 0.0
-                )
-                decks.append(
-                    OwnerDeckRead(
-                        id=FlashcardDeckId(deck.id),
-                        name=deck.name,
-                        language_level=row.most_frequent_language_level
-                        or deck.default_language_level,
-                        flashcards_count=row.flashcards_count or 0,
-                        rating_percentage=avg_rating,
-                        last_learnt_at=row.last_learnt_at,
-                        owner_type=FlashcardOwnerType.ADMIN,
-                    )
-                )
-
-            return decks
+        return decks
 
     async def get_by_user(
         self,
@@ -291,102 +288,99 @@ class FlashcardDeckReadRepository(IFlashcardDeckReadRepository):
         """
         Equivalent of PHP getByUser()
         """
-        async with get_session() as session:
-            most_freq_lvl_subq = (
-                select(Flashcards.flashcard_deck_id, Flashcards.language_level)
-                .filter(Flashcards.front_lang == front_lang.value)
-                .filter(Flashcards.back_lang == back_lang.value)
-                .group_by(Flashcards.flashcard_deck_id, Flashcards.language_level)
-                .order_by(desc(func.count(Flashcards.id)))
-                .limit(1)
-                .subquery()
+
+        most_freq_lvl_subq = (
+            select(Flashcards.flashcard_deck_id, Flashcards.language_level)
+            .filter(Flashcards.front_lang == front_lang.value)
+            .filter(Flashcards.back_lang == back_lang.value)
+            .group_by(Flashcards.flashcard_deck_id, Flashcards.language_level)
+            .order_by(desc(func.count(Flashcards.id)))
+            .limit(1)
+            .subquery()
+        )
+
+        flashcards_count_subq = (
+            select(
+                Flashcards.flashcard_deck_id,
+                func.count(Flashcards.id).label("flashcards_count"),
+            )
+            .group_by(Flashcards.flashcard_deck_id)
+            .subquery()
+        )
+
+        last_learnt_subq = (
+            select(
+                Flashcards.flashcard_deck_id,
+                func.max(LearningSessionFlashcards.updated_at).label("last_learnt_at"),
+            )
+            .join(
+                LearningSessions,
+                LearningSessions.id == LearningSessionFlashcards.learning_session_id,
+            )
+            .join(Flashcards, Flashcards.id == LearningSessionFlashcards.flashcard_id)
+            .filter(LearningSessions.user_id == user_id.value)
+            .group_by(Flashcards.flashcard_deck_id)
+            .subquery()
+        )
+
+        query = (
+            select(
+                FlashcardDecks,
+                flashcards_count_subq.c.flashcards_count,
+                last_learnt_subq.c.last_learnt_at,
+                most_freq_lvl_subq.c.language_level.label("most_frequent_language_level"),
+            )
+            .join(
+                flashcards_count_subq,
+                flashcards_count_subq.c.flashcard_deck_id == FlashcardDecks.id,
+                isouter=True,
+            )
+            .join(
+                last_learnt_subq,
+                last_learnt_subq.c.flashcard_deck_id == FlashcardDecks.id,
+                isouter=True,
+            )
+            .join(
+                most_freq_lvl_subq,
+                most_freq_lvl_subq.c.flashcard_deck_id == FlashcardDecks.id,
+                isouter=True,
+            )
+            .filter(
+                FlashcardDecks.user_id == user_id.value,
+                FlashcardDecks.admin_id.is_(None),
+            )
+        )
+
+        if search:
+            query = query.filter(func.lower(FlashcardDecks.name).like(f"%{search.lower()}%"))
+
+        query = query.order_by(desc(FlashcardDecks.created_at))
+        query = query.limit(per_page).offset((page - 1) * per_page)
+
+        result = await self.session.execute(query)
+        rows = result.all()
+
+        rating_stats = await self.get_rating_stats([row.FlashcardDecks.id for row in rows], user_id)
+
+        decks: list[OwnerDeckRead] = []
+        for row in rows:
+            deck = row.FlashcardDecks
+            total_avg = rating_stats.get(deck.id, 0.0)
+            avg_rating = (
+                (total_avg / (row.flashcards_count * Rating.max_rating()) * Decimal(100.0))
+                if row.flashcards_count
+                else 0.0
+            )
+            decks.append(
+                OwnerDeckRead(
+                    id=FlashcardDeckId(deck.id),
+                    name=deck.name,
+                    language_level=row.most_frequent_language_level or deck.default_language_level,
+                    flashcards_count=row.flashcards_count or 0,
+                    rating_percentage=float(avg_rating),
+                    last_learnt_at=row.last_learnt_at,
+                    owner_type=FlashcardOwnerType.USER,
+                )
             )
 
-            flashcards_count_subq = (
-                select(
-                    Flashcards.flashcard_deck_id,
-                    func.count(Flashcards.id).label("flashcards_count"),
-                )
-                .group_by(Flashcards.flashcard_deck_id)
-                .subquery()
-            )
-
-            last_learnt_subq = (
-                select(
-                    Flashcards.flashcard_deck_id,
-                    func.max(LearningSessionFlashcards.updated_at).label("last_learnt_at"),
-                )
-                .join(
-                    LearningSessions,
-                    LearningSessions.id == LearningSessionFlashcards.learning_session_id,
-                )
-                .join(Flashcards, Flashcards.id == LearningSessionFlashcards.flashcard_id)
-                .filter(LearningSessions.user_id == user_id.value)
-                .group_by(Flashcards.flashcard_deck_id)
-                .subquery()
-            )
-
-            query = (
-                select(
-                    FlashcardDecks,
-                    flashcards_count_subq.c.flashcards_count,
-                    last_learnt_subq.c.last_learnt_at,
-                    most_freq_lvl_subq.c.language_level.label("most_frequent_language_level"),
-                )
-                .join(
-                    flashcards_count_subq,
-                    flashcards_count_subq.c.flashcard_deck_id == FlashcardDecks.id,
-                    isouter=True,
-                )
-                .join(
-                    last_learnt_subq,
-                    last_learnt_subq.c.flashcard_deck_id == FlashcardDecks.id,
-                    isouter=True,
-                )
-                .join(
-                    most_freq_lvl_subq,
-                    most_freq_lvl_subq.c.flashcard_deck_id == FlashcardDecks.id,
-                    isouter=True,
-                )
-                .filter(
-                    FlashcardDecks.user_id == user_id.value,
-                    FlashcardDecks.admin_id.is_(None),
-                )
-            )
-
-            if search:
-                query = query.filter(func.lower(FlashcardDecks.name).like(f"%{search.lower()}%"))
-
-            query = query.order_by(desc(FlashcardDecks.created_at))
-            query = query.limit(per_page).offset((page - 1) * per_page)
-
-            result = await session.execute(query)
-            rows = result.all()
-
-            rating_stats = await self.get_rating_stats(
-                [row.FlashcardDecks.id for row in rows], user_id
-            )
-
-            decks: list[OwnerDeckRead] = []
-            for row in rows:
-                deck = row.FlashcardDecks
-                total_avg = rating_stats.get(deck.id, 0.0)
-                avg_rating = (
-                    (total_avg / (row.flashcards_count * Rating.max_rating()) * Decimal(100.0))
-                    if row.flashcards_count
-                    else 0.0
-                )
-                decks.append(
-                    OwnerDeckRead(
-                        id=FlashcardDeckId(deck.id),
-                        name=deck.name,
-                        language_level=row.most_frequent_language_level
-                        or deck.default_language_level,
-                        flashcards_count=row.flashcards_count or 0,
-                        rating_percentage=float(avg_rating),
-                        last_learnt_at=row.last_learnt_at,
-                        owner_type=FlashcardOwnerType.USER,
-                    )
-                )
-
-            return decks
+        return decks

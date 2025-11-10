@@ -1,4 +1,5 @@
 import pytest
+from punq import Container
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -19,20 +20,19 @@ from tests.factory import (
 )
 
 
-def get_repo() -> SmTwoFlashcardRepository:
-    from core.container import container
-
+@pytest.fixture
+def repository(container: Container) -> SmTwoFlashcardRepository:
     return container.resolve(SmTwoFlashcardRepository)
 
 
 @pytest.mark.asyncio
 async def test_get_next_flashcards(
+    repository: SmTwoFlashcardRepository,
     session: AsyncSession,
     owner_factory: OwnerFactory,
     deck_factory: FlashcardDeckFactory,
     flashcard_factory: FlashcardFactory,
 ):
-    repo = get_repo()
     owner = await owner_factory.create_user_owner()
     deck = await deck_factory.create(owner)
 
@@ -51,7 +51,7 @@ async def test_get_next_flashcards(
         )
 
     # Call method under test
-    result = await repo.get_next_flashcards(
+    result = await repository.get_next_flashcards(
         user_id=UserId(value=owner.id.value),
         limit=3,
         exclude_flashcard_ids=[FlashcardId(f.id) for f in flashcards[:2]],
@@ -86,13 +86,13 @@ async def test_get_next_flashcards(
 
 @pytest.mark.asyncio
 async def test_get_next_flashcards_by_deck_filter_works(
+    repository: SmTwoFlashcardRepository,
     session: AsyncSession,
     owner_factory: OwnerFactory,
     deck_factory: FlashcardDeckFactory,
     flashcard_factory: FlashcardFactory,
     sm_two_factory: SmTwoFlashcardRepository,
 ):
-    repo = get_repo()
     owner = await owner_factory.create_user_owner()
     deck = await deck_factory.create(owner)
     other_deck = await deck_factory.create(owner)
@@ -100,7 +100,7 @@ async def test_get_next_flashcards_by_deck_filter_works(
     expected = await flashcard_factory.create(deck=deck, owner=owner)
     await flashcard_factory.create(deck=other_deck, owner=owner)
 
-    result = await repo.get_next_flashcards(
+    result = await repository.get_next_flashcards(
         user_id=UserId(value=owner.id.value),
         limit=3,
         exclude_flashcard_ids=[],
@@ -119,13 +119,13 @@ async def test_get_next_flashcards_by_deck_filter_works(
 
 @pytest.mark.asyncio
 async def test_get_next_flashcards_from_poll_return_only_from_poll(
+    repository: SmTwoFlashcardRepository,
     session: AsyncSession,
     owner_factory: OwnerFactory,
     deck_factory: FlashcardDeckFactory,
     flashcard_factory: FlashcardFactory,
     flashcard_poll_factory: FlashcardPollItemFactory,
 ):
-    repo = get_repo()
     owner = await owner_factory.create_user_owner()
     deck = await deck_factory.create(owner)
 
@@ -133,7 +133,7 @@ async def test_get_next_flashcards_from_poll_return_only_from_poll(
     expected = await flashcard_factory.create(deck=deck, owner=owner)
     await flashcard_poll_factory.create(user_id=owner.id.value, flashcard_id=expected.id)
 
-    result = await repo.get_next_flashcards(
+    result = await repository.get_next_flashcards(
         user_id=UserId(value=owner.id.value),
         limit=3,
         exclude_flashcard_ids=[],
@@ -152,12 +152,12 @@ async def test_get_next_flashcards_from_poll_return_only_from_poll(
 
 @pytest.mark.asyncio
 async def test_get_next_flashcards_sort_by_sm_two_difficulty(
+    repository: SmTwoFlashcardRepository,
     owner_factory: OwnerFactory,
     deck_factory: FlashcardDeckFactory,
     flashcard_factory: FlashcardFactory,
     sm_two_factory: SmTwoFlashcardsFactory,
 ):
-    repo = get_repo()
     owner = await owner_factory.create_user_owner()
     deck = await deck_factory.create(owner)
 
@@ -167,7 +167,7 @@ async def test_get_next_flashcards_sort_by_sm_two_difficulty(
     await sm_two_factory.create(owner.id.value, other.id, repetition_interval=3.0)
     await sm_two_factory.create(owner.id.value, expected.id, repetition_interval=2.0)
 
-    result = await repo.get_next_flashcards(
+    result = await repository.get_next_flashcards(
         user_id=UserId(value=owner.id.value),
         limit=3,
         exclude_flashcard_ids=[],

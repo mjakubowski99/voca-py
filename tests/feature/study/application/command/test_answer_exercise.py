@@ -1,8 +1,7 @@
 import pytest
+from punq import Container
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import select
-
-from core.container import container
 from core.models import ExerciseEntries, SmTwoFlashcards
 from src.flashcard.domain.models.owner import Owner
 from src.shared.value_objects.flashcard_id import FlashcardId
@@ -18,12 +17,14 @@ from tests.factory import (
 )
 
 
-def get_handler() -> AnswerExercise:
+@pytest.fixture
+def handler(container: Container) -> AnswerExercise:
     return container.resolve(AnswerExercise)
 
 
 @pytest.mark.asyncio
 async def test_handle_unscramble_should_assess_answer_and_update_exercise(
+    handler: AnswerExercise,
     session: AsyncSession,
     user_factory: UserFactory,
     deck_factory: FlashcardDeckFactory,
@@ -32,7 +33,6 @@ async def test_handle_unscramble_should_assess_answer_and_update_exercise(
     assert_db_has,
 ):
     # Arrange
-    handler = get_handler()
     user = await user_factory.create_auth_user()
 
     owner = Owner.from_auth_user(user=user)
@@ -75,6 +75,7 @@ async def test_handle_unscramble_should_assess_answer_and_update_exercise(
 
 @pytest.mark.asyncio
 async def test_handle_unscramble_should_save_rating_when_exercise_is_completed(
+    handler: AnswerExercise,
     session: AsyncSession,
     user_factory: UserFactory,
     deck_factory: FlashcardDeckFactory,
@@ -83,7 +84,6 @@ async def test_handle_unscramble_should_save_rating_when_exercise_is_completed(
     assert_db_has,
 ):
     # Arrange
-    handler = get_handler()
     user = await user_factory.create_auth_user()
 
     owner = Owner.from_auth_user(user=user)
@@ -123,6 +123,7 @@ async def test_handle_unscramble_should_save_rating_when_exercise_is_completed(
 
 @pytest.mark.asyncio
 async def test_handle_unscramble_with_hints_should_penalize_score(
+    handler: AnswerExercise,
     session: AsyncSession,
     user_factory: UserFactory,
     deck_factory: FlashcardDeckFactory,
@@ -131,7 +132,6 @@ async def test_handle_unscramble_with_hints_should_penalize_score(
     assert_db_has,
 ):
     # Arrange
-    handler = get_handler()
     user = await user_factory.create_auth_user()
 
     owner = Owner.from_auth_user(user=user)
@@ -182,6 +182,7 @@ async def test_handle_unscramble_with_hints_should_penalize_score(
 
 @pytest.mark.asyncio
 async def test_handle_unscramble_with_incorrect_answer_should_not_complete_exercise(
+    handler: AnswerExercise,
     session: AsyncSession,
     user_factory: UserFactory,
     deck_factory: FlashcardDeckFactory,
@@ -190,7 +191,6 @@ async def test_handle_unscramble_with_incorrect_answer_should_not_complete_exerc
     assert_db_has,
 ):
     # Arrange
-    handler = get_handler()
     user = await user_factory.create_auth_user()
 
     owner = Owner.from_auth_user(user=user)
@@ -243,6 +243,7 @@ async def test_handle_unscramble_with_incorrect_answer_should_not_complete_exerc
 
 @pytest.mark.asyncio
 async def test_handle_word_match_should_assess_answer_and_update_exercise(
+    handler: AnswerExercise,
     session: AsyncSession,
     user_factory: UserFactory,
     deck_factory: FlashcardDeckFactory,
@@ -251,7 +252,6 @@ async def test_handle_word_match_should_assess_answer_and_update_exercise(
     assert_db_has,
 ):
     # Arrange
-    handler = get_handler()
     user = await user_factory.create_auth_user()
 
     owner = Owner.from_auth_user(user=user)
@@ -295,6 +295,7 @@ async def test_handle_word_match_should_assess_answer_and_update_exercise(
 
 @pytest.mark.asyncio
 async def test_handle_word_match_should_assess_answer_and_update_exercise_with_multiple_entries(
+    handler: AnswerExercise,
     session: AsyncSession,
     user_factory: UserFactory,
     deck_factory: FlashcardDeckFactory,
@@ -303,7 +304,6 @@ async def test_handle_word_match_should_assess_answer_and_update_exercise_with_m
     assert_db_has,
 ):
     # Arrange
-    handler = get_handler()
     user = await user_factory.create_auth_user()
 
     owner = Owner.from_auth_user(user=user)
@@ -384,6 +384,7 @@ async def test_handle_word_match_should_assess_answer_and_update_exercise_with_m
 
 @pytest.mark.asyncio
 async def test_handle_word_match_should_save_rating_when_exercise_is_completed(
+    handler: AnswerExercise,
     session: AsyncSession,
     user_factory: UserFactory,
     deck_factory: FlashcardDeckFactory,
@@ -392,7 +393,6 @@ async def test_handle_word_match_should_save_rating_when_exercise_is_completed(
     assert_db_has,
 ):
     # Arrange
-    handler = get_handler()
     user = await user_factory.create_auth_user()
 
     owner = Owner.from_auth_user(user=user)
@@ -435,6 +435,7 @@ async def test_handle_word_match_should_save_rating_when_exercise_is_completed(
 
 @pytest.mark.asyncio
 async def test_handle_word_match_with_incorrect_answer_should_not_complete_exercise(
+    handler: AnswerExercise,
     session: AsyncSession,
     user_factory: UserFactory,
     deck_factory: FlashcardDeckFactory,
@@ -443,7 +444,6 @@ async def test_handle_word_match_with_incorrect_answer_should_not_complete_exerc
     assert_db_has,
 ):
     # Arrange
-    handler = get_handler()
     user = await user_factory.create_auth_user()
 
     owner = Owner.from_auth_user(user=user)

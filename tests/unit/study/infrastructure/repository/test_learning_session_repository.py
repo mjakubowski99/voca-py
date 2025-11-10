@@ -1,3 +1,4 @@
+from punq import Container
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import select
@@ -11,7 +12,6 @@ from src.study.domain.enum import ExerciseType, SessionStatus, SessionType
 from src.study.domain.models.learning_session import LearningSession
 from src.study.domain.models.learning_session_step import LearningSessionStep
 from src.study.domain.value_objects import LearningSessionId, LearningSessionStepId
-from core.container import container
 from tests.factory import (
     FlashcardDeckFactory,
     FlashcardFactory,
@@ -24,12 +24,15 @@ from src.study.infrastructure.repository.session_repository import LearningSessi
 from unittest.mock import Mock
 
 
-def get_repo() -> LearningSessionRepository:
+@pytest.fixture
+def repository(container: Container) -> LearningSessionRepository:
     return container.resolve(LearningSessionRepository)
 
 
 @pytest.mark.asyncio
-async def test_create_should_create_new_session(user_factory: UserFactory):
+async def test_create_should_create_new_session(
+    repository: LearningSessionRepository, user_factory: UserFactory
+):
     user = await user_factory.create()
 
     learning_session = LearningSession(
@@ -44,8 +47,7 @@ async def test_create_should_create_new_session(user_factory: UserFactory):
         new_steps=[],
     )
 
-    repo = get_repo()
-    session = await repo.create(learning_session)
+    session = await repository.create(learning_session)
 
     assert session.id != 0
     assert session.user_id.value == user.id
@@ -53,6 +55,7 @@ async def test_create_should_create_new_session(user_factory: UserFactory):
 
 @pytest.mark.asyncio
 async def test_save_steps_should_save_flashcards(
+    repository: LearningSessionRepository,
     user_factory: UserFactory,
     deck_factory: FlashcardDeckFactory,
     flashcard_factory: FlashcardFactory,
@@ -86,9 +89,7 @@ async def test_save_steps_should_save_flashcards(
             )
         ],
     )
-
-    repo = get_repo()
-    session = await repo.save_steps(learning_session)
+    session = await repository.save_steps(learning_session)
 
     assert session.id.get_value() != 0
     assert session.new_steps[0].id.get_value() != 0
@@ -96,6 +97,7 @@ async def test_save_steps_should_save_flashcards(
 
 @pytest.mark.asyncio
 async def test_find_should_build_learning_session(
+    repository: LearningSessionRepository,
     user_factory: UserFactory,
     deck_factory: FlashcardDeckFactory,
     flashcard_factory: FlashcardFactory,
@@ -110,8 +112,7 @@ async def test_find_should_build_learning_session(
     session = await learning_session_factory.create(user.id)
     await learning_session_flashcard_factory.create(session, flashcard, rating=None)
 
-    repo = get_repo()
-    session = await repo.find(SessionId(value=session.id))
+    session = await repository.find(SessionId(value=session.id))
 
     assert isinstance(session, LearningSession)
     assert len(session.new_steps) == 1
@@ -119,6 +120,7 @@ async def test_find_should_build_learning_session(
 
 @pytest.mark.asyncio
 async def test_find_should_build_learning_session_with_unscramble_exercise(
+    repository: LearningSessionRepository,
     session: AsyncSession,
     user_factory: UserFactory,
     deck_factory: FlashcardDeckFactory,
@@ -153,8 +155,7 @@ async def test_find_should_build_learning_session_with_unscramble_exercise(
         exercise_type=ExerciseType.UNSCRAMBLE_WORDS.to_number(),
     )
 
-    repo = get_repo()
-    session = await repo.find(SessionId(value=learning_session.id))
+    session = await repository.find(SessionId(value=learning_session.id))
 
     assert isinstance(session, LearningSession)
     assert len(session.new_steps) == 1

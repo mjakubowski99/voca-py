@@ -1,11 +1,10 @@
+from punq import Container
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession
 from src.flashcard.domain.value_objects import FlashcardDeckId
 from src.flashcard.infrastructure.repository.flashcard_deck_read_repository import (
     FlashcardDeckReadRepository,
 )
-from core.container import container
-from src.shared.enum import Language, LanguageLevel
+from src.shared.enum import Language
 from src.shared.value_objects.user_id import UserId
 from tests.factory import (
     FlashcardFactory,
@@ -14,12 +13,14 @@ from tests.factory import (
 )
 
 
-def get_repo() -> FlashcardDeckReadRepository:
+@pytest.fixture
+def repository(container: Container) -> FlashcardDeckReadRepository:
     return container.resolve(FlashcardDeckReadRepository)
 
 
 @pytest.mark.asyncio
 async def test_find_should_find_deck(
+    repository: FlashcardDeckReadRepository,
     owner_factory: OwnerFactory,
     deck_factory: FlashcardDeckFactory,
     flashcard_factory: FlashcardFactory,
@@ -28,7 +29,7 @@ async def test_find_should_find_deck(
     deck = await deck_factory.create(user)
     flashcard = await flashcard_factory.create(deck, user)
 
-    result = await get_repo().find_details(
+    result = await repository.find_details(
         UserId(value=user.id.value), FlashcardDeckId(value=deck.id), None, 1, 15
     )
 
@@ -39,6 +40,7 @@ async def test_find_should_find_deck(
 
 @pytest.mark.asyncio
 async def test_get_by_user(
+    repository: FlashcardDeckReadRepository,
     owner_factory: OwnerFactory,
     deck_factory: FlashcardDeckFactory,
 ):
@@ -48,7 +50,7 @@ async def test_get_by_user(
         await deck_factory.create(user),
     ]
 
-    results = await get_repo().get_by_user(
+    results = await repository.get_by_user(
         UserId(value=user.id.value), Language.PL, Language.EN, None, 1, 15
     )
 
@@ -58,6 +60,7 @@ async def test_get_by_user(
 
 @pytest.mark.asyncio
 async def test_get_by_admin(
+    repository: FlashcardDeckReadRepository,
     owner_factory: OwnerFactory,
     deck_factory: FlashcardDeckFactory,
 ):
@@ -68,7 +71,7 @@ async def test_get_by_admin(
         await deck_factory.create(admin),
     ]
 
-    results = await get_repo().get_admin_decks(
+    results = await repository.get_admin_decks(
         UserId(value=user.id.value), Language.PL, Language.EN, None, None, 1, 15
     )
 

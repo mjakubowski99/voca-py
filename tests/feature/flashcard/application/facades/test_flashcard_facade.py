@@ -1,8 +1,7 @@
 import pytest
+from punq import Container
 from src.flashcard.application.facades.flashcard_facade import FlashcardFacade
-from core.container import container
 from src.study.application.dto.picking_context import PickingContext
-from src.shared.value_objects.user_id import UserId
 from src.shared.value_objects.flashcard_deck_id import FlashcardDeckId
 from tests.factory import (
     FlashcardFactory,
@@ -13,19 +12,19 @@ from tests.factory import (
 from src.flashcard.domain.models.owner import Owner
 
 
-def get_facade() -> FlashcardFacade:
+@pytest.fixture
+def facade(container: Container) -> FlashcardFacade:
     return container.resolve(FlashcardFacade)
 
 
 @pytest.mark.asyncio
 async def test_pick_flashcard_should_pick_flashcard(
+    facade: FlashcardFacade,
     user_factory: UserFactory,
     deck_factory: FlashcardDeckFactory,
     flashcard_factory: FlashcardFactory,
     sm_two_factory: SmTwoFlashcardsFactory,
 ):
-    facade = get_facade()
-
     user = await user_factory.create_auth_user()
     owner = Owner.from_auth_user(user=user)
     deck = await deck_factory.create(owner)
