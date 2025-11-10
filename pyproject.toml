@@ -28,8 +28,10 @@ dependencies = [
     "opentelemetry-api (>=1.38.0,<2.0.0)",
     "opentelemetry-sdk (>=1.38.0,<2.0.0)",
     "opentelemetry-instrumentation-fastapi (>=0.59b0,<0.60)",
+    "opentelemetry-instrumentation-logging (>=0.59b0,<0.60)",
+    "opentelemetry-instrumentation-sqlalchemy (>=0.59b0,<0.60)",
     "opentelemetry-exporter-otlp (>=1.38.0,<2.0.0)",
-    "opentelemetry-instrumentation-logging (>=0.59b0,<0.60)"
+    "sqladmin (>=0.21.0,<0.22.0)"
 ]
 
 [tool.poetry]

@@ -1,11 +1,13 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from typing import AsyncGenerator, Optional
+from typing import AsyncGenerator
 from core.models import Base
 
 
 class Database:
     def __init__(self, url: str):
-        self.engine = create_async_engine(url, echo=True)
+        self.engine = create_async_engine(
+            url, echo=False, pool_size=10, max_overflow=20, pool_timeout=30, pool_recycle=1800
+        )
         self.session_factory = async_sessionmaker(
             self.engine, class_=AsyncSession, expire_on_commit=False
         )
@@ -27,6 +29,7 @@ class Database:
 
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
+    global db
     async for session in db.get_session():
         try:
             yield session
@@ -36,6 +39,3 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
             raise
         finally:
             await session.close()
-
-
-db: Optional[Database] = None

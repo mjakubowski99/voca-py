@@ -1,21 +1,18 @@
 import asyncio
-import uuid
-from core.db import get_session, set_db_session_context
+import core.database as database
+from core.database import Database
 import typer
 from datetime import datetime
 from typing import Optional
 
-from core.db import init_db
 from src.user.application.command.create_user import CreateUserHandler, CreateUserCommand
-from src.shared.util.hash import IHash
-from core.container import container
+from core.container import create_container
+from config import settings
 
 app = typer.Typer(help="User management CLI")
 
-async def init():
-    set_db_session_context(uuid.uuid4())
-    await init_db()
-    
+database.db = Database(settings.database_url)
+
 
 @app.command("create-user")
 def create_user(
@@ -25,22 +22,22 @@ def create_user(
     picture: Optional[str] = typer.Option(None, help="Profile picture URL"),
 ):
     """Create a new user from CLI"""
+
     async def _run():
-        await init()
+        async for session in database.get_session():
+            container = create_container(session)
+            handler = container.resolve(CreateUserHandler)
 
-        handler = container.resolve(CreateUserHandler)
+            command = CreateUserCommand(
+                email=email,
+                name=name,
+                password=password,
+                picture=picture,
+                email_verified_at=datetime.utcnow(),
+            )
 
-        command = CreateUserCommand(
-            email=email,
-            name=name,
-            password=password,
-            picture=picture,
-            email_verified_at=datetime.utcnow(),
-        )
-
-        await handler.handle(command)
-        await get_session().commit()
-        typer.echo(f"✅ User {email} created successfully!")
+            await handler.handle(command)
+            typer.echo(f"✅ User {email} created successfully!")
 
     asyncio.run(_run())
 

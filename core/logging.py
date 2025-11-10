@@ -7,6 +7,8 @@ import queue
 import logging
 from logging.handlers import QueueHandler, QueueListener, RotatingFileHandler
 import traceback
+from opentelemetry import trace
+from opentelemetry.trace.status import Status, StatusCode
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
@@ -28,6 +30,12 @@ queue_listener = QueueListener(log_queue, rot_handler)
 
 # Start listening.
 queue_listener.start()
+
+
+def log_to_span(message: str, level: int = logging.INFO):
+    span = trace.get_current_span()
+    if span and span.is_recording():
+        span.add_event(message, {"log.level": logging.getLevelName(level)})
 
 
 async def log_response_time(request: Request, call_next):
@@ -52,14 +60,16 @@ async def exception_handler(request: Request, exc: Exception):
     else:
         detail = str(exc)
 
-    # Log structured error message with traceback
-    logger.error(
+    tb_str = traceback.format_exc()
+    log_msg = (
         f"ERROR {request.method} {request.url.path}\n"
         f"Exception type: {exc.__class__.__name__}\n"
         f"Detail: {detail}\n"
-        f"Traceback:\n{traceback.format_exc()}",
-        exc_info=False,  # no need for double traceback
+        f"Traceback:\n{tb_str}"
     )
+
+    logger.error(log_msg)
+    log_to_span(log_msg, logging.ERROR)
 
     return JSONResponse(
         status_code=500,
