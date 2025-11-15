@@ -1,6 +1,6 @@
 from sqlalchemy import select, insert, text, update
 from sqlalchemy.exc import NoResultFound
-from core.models import Exercises, ExerciseEntries, UnscrambleWordExercises
+from core.models import Exercises, ExerciseEntries
 
 from src.shared.value_objects.flashcard_id import FlashcardId
 from src.study.application.repository.contracts import (

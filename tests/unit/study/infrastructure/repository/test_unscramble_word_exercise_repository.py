@@ -2,7 +2,7 @@ from punq import Container
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import select
-from core.models import ExerciseEntries, Exercises, UnscrambleWordExercises
+from core.models import ExerciseEntries, Exercises
 from src.shared.value_objects.flashcard_id import FlashcardId
 from src.study.domain.enum import ExerciseStatus
 from src.study.domain.models.exercise.unscramble_word_exercise import UnscrambleWordExercise

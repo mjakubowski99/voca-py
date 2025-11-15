@@ -11,7 +11,6 @@ from core.models import (
     LearningSessionFlashcards,
     LearningSessions,
     SmTwoFlashcards,
-    UnscrambleWordExercises,
     Users,
     Admins,
     FlashcardDecks,
