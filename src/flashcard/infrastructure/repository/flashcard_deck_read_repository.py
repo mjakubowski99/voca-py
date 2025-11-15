@@ -7,6 +7,7 @@ from sqlalchemy import func, desc
 from core.models import FlashcardDecks, Flashcards, LearningSessionFlashcards, LearningSessions
 from src.flashcard.application.dto import owner_deck_read
 from src.flashcard.application.dto.deck_details_read import DeckDetailsRead
+from src.flashcard.application.dto.rating_stats import RatingStats
 from src.flashcard.application.repository.contracts import IFlashcardDeckReadRepository
 from src.flashcard.domain.enum import FlashcardOwnerType, Rating
 from src.flashcard.domain.models.owner import Owner

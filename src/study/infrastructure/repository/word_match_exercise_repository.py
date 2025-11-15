@@ -1,3 +1,4 @@
+from ast import Return
 from datetime import datetime, timezone
 from typing import Any, List, Dict
 from sqlalchemy.future import select
@@ -18,6 +19,12 @@ from src.study.application.repository.contracts import IWordMatchExerciseReposit
 class WordMatchExerciseRepository(IWordMatchExerciseRepository):
     def __init__(self, session: AsyncSession):
         self.session = session
+
+    async def find_by_entry_id(self, entry_id: ExerciseEntryId) -> WordMatchExerciseEntry:
+        stmt = select(ExerciseEntries.exercise_id).where(ExerciseEntries.id == entry_id.value)
+        id = await self.session.scalar(stmt)
+        exercise_id = ExerciseId(value=id)
+        return await self.find(exercise_id)
 
     async def find(self, exercise_id: ExerciseId) -> WordMatchExercise:
         q = (
@@ -81,8 +88,15 @@ class WordMatchExerciseRepository(IWordMatchExerciseRepository):
                     order=entry.order,
                 )
             )
+
         if bulk:
-            await self.session.execute(insert(ExerciseEntries), bulk)
+            entry_ids = await self.session.execute(
+                insert(ExerciseEntries).returning(ExerciseEntries.id), bulk
+            )
+            entry_ids = [ExerciseEntryId(row.id) for row in entry_ids.fetchall()]
+            for entry, entry_id in zip(entries, entry_ids):
+                entry.exercise_id = ExerciseId(exercise_id)
+                entry.id = entry_id
 
     async def _save_entries(self, entries: List[WordMatchExerciseEntry]) -> None:
         for entry in entries:

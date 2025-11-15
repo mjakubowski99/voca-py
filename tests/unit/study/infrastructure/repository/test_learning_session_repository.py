@@ -1,8 +1,9 @@
+from typing import Callable
 from punq import Container
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import select
-from core.models import ExerciseEntries
+from core.models import ExerciseEntries, LearningSessionFlashcards
 from src.flashcard.domain.models.owner import Owner
 from src.flashcard.domain.value_objects import SessionId
 from src.shared.flashcard.contracts import IFlashcard
@@ -54,7 +55,7 @@ async def test_create_should_create_new_session(
 
 
 @pytest.mark.asyncio
-async def test_save_steps_should_save_flashcards(
+async def test_save_new_steps_should_save_flashcards(
     repository: LearningSessionRepository,
     user_factory: UserFactory,
     deck_factory: FlashcardDeckFactory,
@@ -89,10 +90,59 @@ async def test_save_steps_should_save_flashcards(
             )
         ],
     )
-    session = await repository.save_steps(learning_session)
+    session = await repository.save_new_steps(learning_session)
 
     assert session.id.get_value() != 0
     assert session.new_steps[0].id.get_value() != 0
+
+
+@pytest.mark.asyncio
+async def test_save_new_steps_should_save_new_flashcards(
+    repository: LearningSessionRepository,
+    user_factory: UserFactory,
+    deck_factory: FlashcardDeckFactory,
+    flashcard_factory: FlashcardFactory,
+    learning_session_factory: LearningSessionFactory,
+    assert_db_count: Callable,
+):
+    user = await user_factory.create()
+    owner = Owner.from_user(UserId(value=user.id))
+    flashcard = await flashcard_factory.create(
+        deck=await deck_factory.create(owner=owner), owner=owner
+    )
+    flaschard_mock = Mock(spec=IFlashcard)
+    flaschard_mock.get_flashcard_id.return_value = FlashcardId(value=flashcard.id)
+
+    session = await learning_session_factory.create(user.id)
+
+    learning_session = LearningSession(
+        id=LearningSessionId(value=session.id),
+        user_id=UserId(value=user.id),
+        status=SessionStatus.IN_PROGRESS,
+        type=SessionType.FLASHCARD,
+        progress=0,
+        limit=15,
+        deck_id=None,
+        device="Name",
+        new_steps=[
+            LearningSessionStep(
+                id=LearningSessionStepId(value=1),
+                rating=None,
+                flashcard_id=FlashcardId(value=flashcard.id),
+                flashcard_exercise=flaschard_mock,
+            ),
+            LearningSessionStep(
+                id=LearningSessionStepId.no_id(),
+                rating=None,
+                flashcard_id=FlashcardId(value=flashcard.id),
+                flashcard_exercise=flaschard_mock,
+            ),
+        ],
+    )
+    session = await repository.save_new_steps(learning_session)
+
+    assert session.id.get_value() != 0
+    assert assert_db_count(LearningSessionFlashcards, 1)
 
 
 @pytest.mark.asyncio

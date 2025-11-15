@@ -2,7 +2,9 @@ from fastapi import Depends
 import punq
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.flashcard.application.command.merge_decks import MergeDecks
 from src.flashcard.application.facades.flashcard_facade import FlashcardFacade
+from src.flashcard.application.query.get_rating_stats import GetRatingStats
 from src.flashcard.application.services.flashcard_poll_manager import FlashcardPollManager
 from src.flashcard.application.services.flashcard_poll_resolver import FlashcardPollResolver
 from src.flashcard.application.services.flashcard_poll_updater import FlashcardPollUpdater
@@ -22,6 +24,9 @@ from src.study.infrastructure.repository.unscramble_word_exercise_repository imp
     UnscrambleWordExerciseRepository,
 )
 from src.flashcard.application.command.generate_flashcards import GenerateFlashcardsHandler
+from src.flashcard.application.command.create_flashcard import CreateFlashcardHandler
+from src.flashcard.application.command.update_flashcard import UpdateFlashcardHandler
+from src.flashcard.application.command.bulk_delete_flashcards import BulkDeleteFlashcardsHandler
 from src.flashcard.application.query.get_deck_details import GetDeckDetails
 from src.flashcard.application.query.get_decks_list import GetAdminDecks, GetUserDecks
 from src.flashcard.application.repository.contracts import (
@@ -29,6 +34,7 @@ from src.flashcard.application.repository.contracts import (
     IFlashcardDeckRepository,
     IFlashcardDuplicateRepository,
     IFlashcardPollRepository,
+    IFlashcardReadRepository,
     IFlashcardRepository,
     ISmTwoFlashcardRepository,
     IStoryRepository,
@@ -64,11 +70,16 @@ from src.shared.util.hash import ArgonHash, IHash
 from src.user.application.command.create_external_user import CreateExternalUserHandler
 from src.user.application.command.create_token import CreateTokenHandler
 from src.user.application.command.create_user import CreateUserHandler
+from src.user.application.command.delete_user import DeleteUserHandler
 from src.user.application.command.login_user import LoginUserHandler
+from src.user.application.command.update_language import UpdateLanguageHandler
+from src.user.application.command.create_report import CreateReportHandler
 from src.user.application.facades.user_facade import UserFacade
 from src.user.application.query.find_user import FindUserHandler
 from src.user.application.query.get_oauth_user import GetOAuthUser
 from src.user.application.repository.contracts import ITokenRepository, IUserRepository
+from src.user.application.repository.report_repository import IReportRepository
+from src.user.infrastructure.repository.report_repository import ReportRepository
 from src.user.domain.contracts import IOAuthLogin
 from src.user.infrastructure.oauth.oauth_login import OAuthLogin
 from src.user.infrastructure.repository.jwt_token_repository import JwtTokenRepository
@@ -107,6 +118,9 @@ def create_container(session: AsyncSession):
     container.register(IFlashcardGenerator, GeminiGenerator)
     container.register(DeckResolver)
     container.register(GenerateFlashcardsHandler)
+    container.register(CreateFlashcardHandler)
+    container.register(UpdateFlashcardHandler)
+    container.register(BulkDeleteFlashcardsHandler)
     container.register(IFlashcardRepository, FlashcardRepository)
     container.register(StoryDuplicateService)
     container.register(FlashcardDuplicateService)
@@ -124,6 +138,11 @@ def create_container(session: AsyncSession):
     container.register(IHash, ArgonHash)
     container.register(LoginUserHandler)
     container.register(CreateUserHandler)
+    container.register(DeleteUserHandler)
+    container.register(UpdateLanguageHandler)
+    container.register(CreateReportHandler)
+    container.register(IReportRepository, ReportRepository)
+    container.register(ReportRepository)
     container.register(IOAuthLogin, OAuthLogin)
     container.register(GetOAuthUser)
     container.register(IUserRepository, UserRepository)
@@ -156,6 +175,9 @@ def create_container(session: AsyncSession):
     container.register(SkipExercise)
     container.register(StoryRepository)
     container.register(IStoryRepository, StoryRepository)
+    container.register(MergeDecks)
+    container.register(IFlashcardReadRepository, FlashcardReadRepository)
+    container.register(GetRatingStats)
 
     return container
 

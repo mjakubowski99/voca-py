@@ -16,11 +16,13 @@ from core.models import (
     Admins,
     FlashcardDecks,
     Flashcards,
+    Stories,
+    StoryFlashcards,
 )
 from src.shared.user.iuser import IUser
-from src.shared.value_objects.flashcard_id import FlashcardId
 from src.shared.value_objects.language import LanguageEnum
 from src.shared.value_objects.user_id import UserId
+from src.shared.value_objects.flashcard_id import FlashcardId
 from src.study.domain.enum import ExerciseStatus, ExerciseType, Rating, SessionStatus, SessionType
 from src.flashcard.domain.models.owner import Owner
 from src.flashcard.domain.enum import FlashcardOwnerType
@@ -400,7 +402,7 @@ class WordMatchExerciseFactory:
 
         await self.entry_factory.create(
             exercise=exercise,
-            correct_answer=word,
+            correct_answer=word_translation,
             order=0,
         )
 
@@ -466,7 +468,7 @@ class WordMatchExerciseFactory:
         for idx, entry in enumerate(entries):
             await self.entry_factory.create(
                 exercise=exercise,
-                correct_answer=entry["word"],
+                correct_answer=entry["word_translation"],
                 order=idx,
             )
 
@@ -595,3 +597,99 @@ class LearningSessionFlashcardFactory:
         await self.session.commit()
 
         return learning_session_flashcard
+
+
+class StoryFlashcardFactory:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def create(
+        self,
+        story_id: int,
+        flashcard_id: int,
+        sentence_override: Optional[str] = None,
+    ) -> StoryFlashcards:
+        """
+        Create and persist a StoryFlashcard database record.
+
+        Args:
+            story_id: The story ID
+            flashcard_id: The flashcard ID
+            sentence_override: Optional sentence override text
+        """
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        story_flashcard = StoryFlashcards(
+            story_id=story_id,
+            flashcard_id=flashcard_id,
+            sentence_override=sentence_override,
+            created_at=now,
+            updated_at=now,
+        )
+        self.session.add(story_flashcard)
+        await self.session.flush()
+        await self.session.refresh(story_flashcard)
+        await self.session.commit()
+        return story_flashcard
+
+
+class StoryFactory:
+    def __init__(
+        self,
+        session: AsyncSession,
+        flashcard_factory: Optional[FlashcardFactory] = None,
+    ):
+        self.session = session
+        self.flashcard_factory = flashcard_factory
+
+    async def create(
+        self,
+        owner: Owner,
+        deck: FlashcardDecks,
+        flashcards: Optional[list[Flashcards]] = None,
+        flashcard_count: int = 2,
+        sentence_overrides: Optional[list[Optional[str]]] = None,
+    ) -> Stories:
+        if flashcards is None:
+            if self.flashcard_factory is None:
+                raise ValueError("flashcard_factory is required when flashcards are not provided")
+
+            flashcards = []
+            for i in range(flashcard_count):
+                db_flashcard = await self.flashcard_factory.create(
+                    deck=deck,
+                    owner=owner,
+                    front_word=f"word{i}",
+                    back_word=f"słowo{i}",
+                )
+                flashcards.append(db_flashcard)
+
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        story = Stories(
+            created_at=now,
+            updated_at=now,
+        )
+        self.session.add(story)
+        await self.session.flush()
+        await self.session.refresh(story)
+
+        if sentence_overrides is None:
+            sentence_overrides = [None] * len(flashcards)
+
+        for index, flashcard in enumerate(flashcards):
+            sentence_override = (
+                sentence_overrides[index] if index < len(sentence_overrides) else None
+            )
+            story_flashcard = StoryFlashcards(
+                story_id=story.id,
+                flashcard_id=flashcard.id,
+                sentence_override=sentence_override,
+                created_at=now,
+                updated_at=now,
+            )
+            self.session.add(story_flashcard)
+
+        await self.session.flush()
+        await self.session.refresh(story)
+        await self.session.commit()
+
+        return story

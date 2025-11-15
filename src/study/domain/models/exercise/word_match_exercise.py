@@ -55,9 +55,21 @@ class WordMatchExercise(Exercise):
 
         return assessment
 
+    def get_current_entry(self) -> WordMatchExerciseEntry:
+        for entry in self.word_match_entries:
+            if not entry.is_answered():
+                return entry
+        return self.word_match_entries[-1]
+
+    def get_answered_entries(self) -> List[WordMatchExerciseEntry]:
+        return [entry for entry in self.word_match_entries if entry.is_answered()]
+
     # --- getters ---
     def get_story_id(self) -> Optional[StoryId]:
         return self.story_id
+
+    def is_story(self) -> bool:
+        return self.story_id is not None
 
     def get_exercise_entries(self) -> List[WordMatchExerciseEntry]:
         return self.word_match_entries

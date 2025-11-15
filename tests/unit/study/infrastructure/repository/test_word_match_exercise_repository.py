@@ -1,16 +1,11 @@
 from punq import Container
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from core.container import container
 from core.models import ExerciseEntries, Exercises
 from src.shared.value_objects.flashcard_id import FlashcardId
-from src.shared.value_objects.story_id import StoryId
 from src.shared.value_objects.user_id import UserId
 from src.study.domain.enum import ExerciseStatus, ExerciseType
 from src.study.domain.models.answer.word_match_answer import WordMatchAnswer
 from src.study.domain.models.exercise.word_match_exercise import WordMatchExercise
-from src.study.domain.models.exercise_entry.exercise_entry import ExerciseEntry
 from src.study.domain.models.exercise_entry.word_match_exercise_entry import WordMatchExerciseEntry
 from src.study.domain.value_objects import ExerciseEntryId, ExerciseId
 from src.study.infrastructure.repository.word_match_exercise_repository import (
@@ -192,7 +187,7 @@ async def test_save_word_match_exercise(
         order=0,
     )
 
-    obj = WordMatchExercise(
+    exercise = WordMatchExercise(
         story_id=None,
         exercise_id=ExerciseId(value=exercise.id),
         user_id=UserId(value=exercise.user_id),
@@ -204,7 +199,7 @@ async def test_save_word_match_exercise(
                 sentence="Test A.",
                 flashcard_id=FlashcardId(value=1),
                 id=ExerciseEntryId(entry.id),
-                exercise_id=ExerciseId(exercise.id),
+                exercise_id=ExerciseId(value=exercise.id),
                 correct_answer=WordMatchAnswer(answer_entry_id=ExerciseEntryId(entry.id), word="A"),
                 last_user_answer=WordMatchAnswer(
                     answer_entry_id=ExerciseEntryId(entry.id), word="A"

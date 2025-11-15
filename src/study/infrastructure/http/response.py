@@ -1,9 +1,10 @@
 from src.flashcard.domain.enum import FlashcardOwnerType
 from src.shared.enum import Language
-from typing import List
+from typing import List, Union
 from typing import Optional
 
 from pydantic import BaseModel, Field
+from src.study.domain.enum import ExerciseType
 
 
 class FlashcardResponse(BaseModel):
@@ -36,13 +37,24 @@ class UnscrambleWordExerciseResponse(BaseModel):
 
 
 class WordMatchExerciseResponse(BaseModel):
-    id: int = Field(..., description="Exercise ID")
-    exercise_entry_id: int = Field(..., description="Exercise entry ID")
-    front_word: str = Field(..., description="Front word")
-    context_sentence: str = Field(..., description="Context sentence")
-    context_sentence_translation: str = Field(..., description="Context sentence translation")
-    back_word: str = Field(..., description="Back word")
-    emoji: Optional[str] = Field(..., description="Emoji")
+    id: int = Field(..., description="Exercise entry ID")
+    is_finished: bool = Field(..., description="Whether the exercise is finished")
+    exercise_id: int = Field(..., description="Exercise entry ID")
+    is_story: bool = Field(..., description="Whether the exercise is a story")
+    word: str = Field(..., description="Word")
+    word_translation: str = Field(..., description="Word translation")
+    sentence_part_before_word: str = Field(..., description="Sentence part before word")
+    sentence_part_after_word: str = Field(..., description="Sentence part after word")
+    options: List[str] = Field(..., description="Options")
+    previous_entries: List["WordMatchExerciseResponse"] = Field([], description="Previous entries")
+
+
+class ExerciseWrapperResponse(BaseModel):
+    exercise_type: ExerciseType = Field(..., description="Type of exercise")
+    links: List[str] = Field(..., description="List of links")
+    data: Union[UnscrambleWordExerciseResponse, WordMatchExerciseResponse] = Field(
+        ..., description="Exercise data"
+    )
 
 
 class LearningSessionResponse(BaseModel):
@@ -51,8 +63,6 @@ class LearningSessionResponse(BaseModel):
     is_finished: bool = Field(..., description="Whether the session is finished")
     progress: int = Field(..., description="Progress")
     is_exercise_mode: bool = Field(..., description="Whether the session is in exercise mode")
-    score: bool = Field(..., description="Whether the session is scored")
+    score: int = Field(..., description="Score after session finished")
     next_flashcards: List[FlashcardResponse] = Field(..., description="Next flashcards")
-    next_exercises: List[UnscrambleWordExerciseResponse | WordMatchExerciseResponse] = Field(
-        ..., description="Next exercises"
-    )
+    next_exercises: List[ExerciseWrapperResponse] = Field(..., description="Next exercises")

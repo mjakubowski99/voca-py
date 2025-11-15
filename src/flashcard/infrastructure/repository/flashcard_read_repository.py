@@ -2,8 +2,9 @@ from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from sqlalchemy.sql import text
+from src.flashcard.application.dto.rating_stats import RatingStat, RatingStats
 from src.shared.models import Emoji
-from src.flashcard.domain.enum import FlashcardOwnerType, GeneralRatingType
+from src.flashcard.domain.enum import FlashcardOwnerType, GeneralRatingType, Rating
 from src.flashcard.domain.value_objects import FlashcardId, FlashcardDeckId
 from src.flashcard.application.dto.flashcard_read import FlashcardRead
 from src.flashcard.application.dto.general_rating import GeneralRating
@@ -22,12 +23,25 @@ class FlashcardReadRepository:
         front_lang: Language,
         back_lang: Language,
         deck_id: Optional[FlashcardDeckId] = None,
-        user_id: Optional[int] = None,
+        user_id: Optional[UserId] = None,
         flashcard_owner_type: Optional[FlashcardOwnerType] = None,
-    ) -> List[dict]:
-        query = select(
-            FlashcardDB.rating, func.count(FlashcardDB.rating).label("rating_count")
-        ).select_from(self.session.query(FlashcardDB))
+    ) -> RatingStats:
+        # Rating jest w LearningSessionFlashcards, więc musimy zawsze joinować
+        query = (
+            select(
+                LearningSessionFlashcards.rating,
+                func.count(LearningSessionFlashcards.rating).label("rating_count"),
+            )
+            .select_from(FlashcardDB)
+            .join(
+                LearningSessionFlashcards,
+                LearningSessionFlashcards.flashcard_id == FlashcardDB.id,
+            )
+            .join(
+                LearningSessions,
+                LearningSessions.id == LearningSessionFlashcards.learning_session_id,
+            )
+        )
 
         # Filtry językowe
         query = query.where(FlashcardDB.front_lang == front_lang.value)
@@ -43,43 +57,39 @@ class FlashcardReadRepository:
         if deck_id is not None:
             query = query.where(FlashcardDB.flashcard_deck_id == deck_id.value)
 
-        # Dołączamy sesje użytkownika jeśli user_id podany
+        # Filtr użytkownika - rating jest powiązany z sesją użytkownika
         if user_id is not None:
-            query = (
-                query.join(
-                    LearningSessionFlashcards,
-                    LearningSessionFlashcards.flashcard_id == FlashcardDB.id,
-                    isouter=True,
-                )
-                .join(
-                    LearningSessions,
-                    LearningSessions.id == LearningSessionFlashcards.learning_session_id,
-                    isouter=True,
-                )
-                .where(LearningSessions.user_id == user_id)
-            )
+            query = query.where(LearningSessions.user_id == user_id.value)
 
-        query = query.where(FlashcardDB.rating.isnot(None))
-        query = query.group_by(FlashcardDB.rating)
+        # Rating musi być niepusty
+        query = query.where(LearningSessionFlashcards.rating.isnot(None))
+        query = query.group_by(LearningSessionFlashcards.rating)
 
         result = await self.session.execute(query)
         rows = result.all()
 
         total_count = sum(row.rating_count for row in rows)
 
-        # Generowanie statystyk w stylu RatingStatsRead
-        ratings_data = []
-        for rating in range(1, 6):  # assuming 1-5 ratings
-            row = next((r for r in rows if r.rating == rating), None)
-            count = row.rating_count if row else 0
-            ratings_data.append(
-                {
-                    "rating": rating,
-                    "percentage": 0.0 if total_count == 0 else count / total_count * 100,
-                }
-            )
+        rating_stats = RatingStats(
+            stats=[
+                RatingStat(
+                    rating=row.rating,
+                    rating_percentage=0.0
+                    if total_count == 0
+                    else row.rating_count / total_count * 100,
+                )
+                for row in rows
+            ]
+        )
 
-        return ratings_data
+        for rating in Rating:
+            rating_stat = next((rs for rs in rating_stats.stats if rs.rating == rating), None)
+            if rating_stat is None:
+                rating_stats.stats.append(RatingStat(rating=rating, rating_percentage=0.0))
+
+        rating_stats.stats.sort(key=lambda x: x.rating)
+
+        return rating_stats
 
     async def get_by_user(
         self,

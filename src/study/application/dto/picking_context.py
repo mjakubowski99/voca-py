@@ -1,8 +1,9 @@
-from typing import Optional
+from typing import List, Optional
 from pydantic import BaseModel
 from src.shared.value_objects.flashcard_deck_id import FlashcardDeckId
 from src.shared.flashcard.contracts import IPickingContext
 from src.shared.user.iuser import IUser
+from src.shared.value_objects.flashcard_id import FlashcardId
 
 
 class PickingContext(BaseModel, IPickingContext):
@@ -10,6 +11,7 @@ class PickingContext(BaseModel, IPickingContext):
     deck_id: Optional[FlashcardDeckId]
     max_flashcards_count: int
     current_count: int
+    exclude_flashcard_ids: List[FlashcardId] = []
 
     model_config = {
         "arbitrary_types_allowed": True,
@@ -26,3 +28,6 @@ class PickingContext(BaseModel, IPickingContext):
 
     def get_current_count(self) -> int:
         return self.current_count
+
+    def get_exclude_flashcard_ids(self) -> List[FlashcardId]:
+        return self.exclude_flashcard_ids

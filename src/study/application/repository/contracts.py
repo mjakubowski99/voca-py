@@ -31,15 +31,19 @@ class IUnscrambleWordExerciseRepository(ABC):
 
 class IWordMatchExerciseRepository(ABC):
     @abstractmethod
-    def find(self, exercise_id: ExerciseId) -> WordMatchExercise:
+    async def find_by_entry_id(self, entry_id: ExerciseEntryId) -> WordMatchExercise:
         pass
 
     @abstractmethod
-    def create(self, exercise: WordMatchExercise) -> ExerciseId:
+    async def find(self, exercise_id: ExerciseId) -> WordMatchExercise:
         pass
 
     @abstractmethod
-    def save(self, exercise: WordMatchExercise) -> None:
+    async def create(self, exercise: WordMatchExercise) -> WordMatchExercise:
+        pass
+
+    @abstractmethod
+    async def save(self, exercise: WordMatchExercise) -> None:
         pass
 
 
@@ -53,7 +57,7 @@ class ISessionRepository(ABC):
         pass
 
     @abstractmethod
-    async def save_steps(self, session: LearningSession) -> LearningSession:
+    async def save_new_steps(self, session: LearningSession) -> LearningSession:
         pass
 
     @abstractmethod
@@ -64,4 +68,8 @@ class ISessionRepository(ABC):
     async def update_flashcard_rating(
         self, step_id: LearningSessionStepId, rating: Rating
     ) -> FlashcardId:
+        pass
+
+    @abstractmethod
+    async def delete_all_for_user(self, user_id: UserId) -> None:
         pass

@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import select, update, delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import insert
-from core.models import Flashcards, FlashcardDecks
+from core.models import Flashcards, FlashcardDecks, LearningSessions
 from src.flashcard.application.repository.contracts import IFlashcardRepository
 from src.flashcard.domain.models.deck import Deck
 from src.flashcard.domain.models.flashcard import Flashcard
@@ -60,6 +60,28 @@ class FlashcardRepository(IFlashcardRepository):
         result = await self.session.execute(stmt)
         return [self.map(row[0], row[1]) for row in result.fetchall()]
 
+    async def create(self, flashcard: Flashcard) -> FlashcardId:
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        insert_data = {
+            "user_id": flashcard.owner.id.value if flashcard.owner.is_user() else None,
+            "admin_id": flashcard.owner.id.value if flashcard.owner.is_admin() else None,
+            "flashcard_deck_id": flashcard.deck.id.value,
+            "front_word": flashcard.front_word,
+            "front_lang": flashcard.front_lang.get_value(),
+            "back_word": flashcard.back_word,
+            "back_lang": flashcard.back_lang.get_value(),
+            "front_context": flashcard.front_context,
+            "back_context": flashcard.back_context,
+            "language_level": flashcard.level.value,
+            "emoji": flashcard.emoji.to_unicode() if flashcard.emoji else None,
+            "created_at": now,
+            "updated_at": now,
+        }
+        stmt = insert(Flashcards).returning(Flashcards.id).values(insert_data)
+        result = await self.session.execute(stmt)
+        flashcard_id = result.scalar_one()
+        return FlashcardId(flashcard_id)
+
     async def create_many(self, flashcards: list[Flashcard]) -> None:
         now = datetime.now(timezone.utc).replace(tzinfo=None)
         insert_data = [
@@ -81,7 +103,6 @@ class FlashcardRepository(IFlashcardRepository):
             for f in flashcards
         ]
         await self.session.execute(Flashcards.__table__.insert(), insert_data)
-        await self.session.commit()
 
     async def create_many_from_story_flashcards(self, stories: StoryCollection) -> StoryCollection:
         """
@@ -120,7 +141,6 @@ class FlashcardRepository(IFlashcardRepository):
         for story_flashcard, new_id in zip(stories.get_all_story_flashcards(), inserted_ids):
             story_flashcard.flashcard.id = new_id
 
-        await self.session.commit()
         return stories
 
     async def find_many(self, flashcard_ids: list[FlashcardId]) -> list[Flashcard]:
@@ -135,7 +155,6 @@ class FlashcardRepository(IFlashcardRepository):
     async def delete(self, flashcard_id: FlashcardId) -> None:
         stmt = delete(Flashcards).where(Flashcards.id == flashcard_id.value)
         await self.session.execute(stmt)
-        await self.session.commit()
 
     async def bulk_delete(self, user_id: UserId, flashcard_ids: list[FlashcardId]) -> None:
         stmt = delete(Flashcards).where(
@@ -143,7 +162,6 @@ class FlashcardRepository(IFlashcardRepository):
             Flashcards.id.in_([f.value for f in flashcard_ids]),
         )
         await self.session.execute(stmt)
-        await self.session.commit()
 
     async def update(self, flashcard: Flashcard) -> None:
         now = datetime.now(timezone.utc).replace(tzinfo=None)
@@ -155,18 +173,17 @@ class FlashcardRepository(IFlashcardRepository):
                 admin_id=flashcard.owner.id.value if flashcard.owner.is_admin() else None,
                 flashcard_deck_id=flashcard.deck.id.value,
                 front_word=flashcard.front_word,
-                front_lang=flashcard.front_lang.value,
+                front_lang=flashcard.front_lang.get_value(),
                 back_word=flashcard.back_word,
-                back_lang=flashcard.back_lang.value,
+                back_lang=flashcard.back_lang.get_value(),
                 front_context=flashcard.front_context,
                 back_context=flashcard.back_context,
-                language_level=flashcard.language_level.value,
+                language_level=flashcard.level.value,
                 emoji=flashcard.emoji.to_unicode() if flashcard.emoji else None,
                 updated_at=now,
             )
         )
         await self.session.execute(stmt)
-        await self.session.commit()
 
     async def replace_deck(
         self, actual_deck_id: FlashcardDeckId, new_deck_id: FlashcardDeckId
@@ -180,7 +197,18 @@ class FlashcardRepository(IFlashcardRepository):
             )
         )
         await self.session.execute(stmt)
-        await self.session.commit()
+
+    async def replace_in_sessions(
+        self, actual_deck_id: FlashcardDeckId, new_deck_id: FlashcardDeckId
+    ) -> None:
+        stmt = (
+            update(LearningSessions)
+            .where(LearningSessions.flashcard_deck_id == actual_deck_id.value)
+            .values(
+                flashcard_deck_id=new_deck_id.value,
+            )
+        )
+        await self.session.execute(stmt)
 
     def map(self, flashcard_row: Flashcards, deck_row: FlashcardDecks | None) -> Flashcard:
         deck = None

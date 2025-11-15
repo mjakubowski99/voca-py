@@ -264,7 +264,7 @@ async def test_handle_word_match_should_assess_answer_and_update_exercise(
         word_translation="perro",
         sentence="The dog is barking.",
         flashcard_id=FlashcardId(value=flashcard.id),
-        options=["dog", "cat", "bird"],
+        options=["perro", "gato", "agato"],
         status=ExerciseStatus.NEW,
     )
 
@@ -276,9 +276,8 @@ async def test_handle_word_match_should_assess_answer_and_update_exercise(
     # Act
     await handler.handle_word_match(
         user=user,
-        exercise_id=ExerciseId(value=exercise.id),
         exercise_entry_id=entry_id,
-        answer="dog",
+        answer="perro",
     )
 
     # Assert
@@ -286,7 +285,7 @@ async def test_handle_word_match_should_assess_answer_and_update_exercise(
         ExerciseEntries,
         {
             "id": entry_id.get_value(),
-            "last_answer": "dog",
+            "last_answer": "perro",
             "last_answer_correct": True,
             "score": 100.0,
         },
@@ -338,7 +337,7 @@ async def test_handle_word_match_should_assess_answer_and_update_exercise_with_m
                 "flashcard_id": FlashcardId(value=flashcard3.id),
             },
         ],
-        options=["dog", "cat", "bird", "fish"],
+        options=["perro", "gato", "pájaro", "aguila"],
         story_id=123,
     )
 
@@ -351,9 +350,8 @@ async def test_handle_word_match_should_assess_answer_and_update_exercise_with_m
 
     await handler.handle_word_match(
         user=user,
-        exercise_id=ExerciseId(value=exercise.id),
         exercise_entry_id=entry_ids[1],
-        answer="cat",
+        answer="gato",
     )
 
     # Assert
@@ -375,7 +373,7 @@ async def test_handle_word_match_should_assess_answer_and_update_exercise_with_m
         ExerciseEntries,
         {
             "id": entry_ids[1].get_value(),
-            "last_answer": "cat",
+            "last_answer": "gato",
             "last_answer_correct": True,
             "score": 100.0,
         },
@@ -405,7 +403,7 @@ async def test_handle_word_match_should_save_rating_when_exercise_is_completed(
         word_translation="perro",
         sentence="The dog is barking.",
         flashcard_id=FlashcardId(value=flashcard.id),
-        options=["dog", "cat", "bird"],
+        options=["perro", "gato", "tato"],
         status=ExerciseStatus.NEW,
     )
 
@@ -417,9 +415,8 @@ async def test_handle_word_match_should_save_rating_when_exercise_is_completed(
     # Act - answer correctly to complete the exercise
     await handler.handle_word_match(
         user=user,
-        exercise_id=ExerciseId(value=exercise.id),
         exercise_entry_id=entry_id,
-        answer="dog",
+        answer="perro",
     )
 
     # Assert - check that rating was saved
@@ -468,7 +465,6 @@ async def test_handle_word_match_with_incorrect_answer_should_not_complete_exerc
     # Act - answer incorrectly
     await handler.handle_word_match(
         user=user,
-        exercise_id=ExerciseId(value=exercise.id),
         exercise_entry_id=entry_id,
         answer="cat",
     )

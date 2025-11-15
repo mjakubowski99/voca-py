@@ -1,4 +1,4 @@
-from sqlalchemy import select, insert, update
+from sqlalchemy import select, insert, text, update
 from sqlalchemy.exc import NoResultFound
 from core.models import Exercises, ExerciseEntries, UnscrambleWordExercises
 
@@ -44,6 +44,11 @@ class UnscrambleWordExerciseRepository(IUnscrambleWordExerciseRepository):
             .join(ExerciseEntries, ExerciseEntries.exercise_id == Exercises.id)
             .where(Exercises.id == exercise_id.value)
         )
+
+        result = await self.session.execute(text("SELECT * FROM exercises;"))
+        other_rows = result.fetchall()
+        for row in other_rows:
+            row
 
         result = await self.session.execute(query)
         row = result.first()

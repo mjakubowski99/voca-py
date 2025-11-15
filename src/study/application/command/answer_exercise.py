@@ -36,10 +36,8 @@ class AnswerExercise:
 
         await self._save_ratings(user, exercise)
 
-    async def handle_word_match(
-        self, user: IUser, exercise_id: ExerciseId, exercise_entry_id: ExerciseEntryId, answer: str
-    ):
-        exercise = await self.word_match_repository.find(exercise_id)
+    async def handle_word_match(self, user: IUser, exercise_entry_id: ExerciseEntryId, answer: str):
+        exercise = await self.word_match_repository.find_by_entry_id(exercise_entry_id)
 
         exercise.assess_answer(
             answer=WordMatchAnswer(answer_entry_id=exercise_entry_id, word=answer, hints_count=0)

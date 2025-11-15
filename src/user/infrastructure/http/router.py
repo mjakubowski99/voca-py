@@ -13,11 +13,18 @@ from src.user.application.command.create_external_user import (
     CreateExternalUserHandler,
 )
 from src.user.application.command.create_token import CreateTokenHandler
+from src.user.application.command.delete_user import DeleteUserHandler
 from src.user.application.command.login_user import LoginUserHandler
+from src.user.application.command.update_language import UpdateLanguageHandler
 from src.user.application.dto.user_dto import UserDTO
 from src.user.application.query.find_user import FindUserHandler
 from src.user.application.query.get_oauth_user import GetOAuthUser
-from src.user.infrastructure.http.requests import LoginRequest, OAuthLoginRequest
+from src.user.infrastructure.http.requests import (
+    DeleteUserRequest,
+    LoginRequest,
+    OAuthLoginRequest,
+    UpdateLanguageRequest,
+)
 from src.user.infrastructure.http.resources import LanguageResource, TokenUserResource, UserResource
 
 router = APIRouter()
@@ -132,3 +139,42 @@ async def get_languages() -> ResponseWrapper[LanguageResource]:
             for lang in Language.all()
         ]
     )
+
+
+@router.delete("/api/v2/user/me", tags=["User"])
+async def delete_user(
+    user: IUser = Depends(get_current_user),
+    request: DeleteUserRequest = Body(...),
+    container: Container = Depends(get_container),
+) -> dict:
+    delete_user_handler: DeleteUserHandler = container.resolve(DeleteUserHandler)
+
+    from src.user.application.command.delete_user import DeleteUser
+
+    command = DeleteUser(user_id=user.get_id(), email=request.email)
+
+    await delete_user_handler.handle(command)
+
+    return {}
+
+
+@router.put("/api/v2/user/me/language", tags=["User"])
+async def update_language(
+    user: IUser = Depends(get_current_user),
+    request: UpdateLanguageRequest = Body(...),
+    container: Container = Depends(get_container),
+) -> dict:
+    update_language_handler: UpdateLanguageHandler = container.resolve(UpdateLanguageHandler)
+
+    from src.user.application.command.update_language import UpdateLanguage
+    from src.shared.value_objects.language import Language
+
+    command = UpdateLanguage(
+        user_id=user.get_id(),
+        user_language=Language(request.user_language),
+        learning_language=Language(request.learning_language),
+    )
+
+    await update_language_handler.handle(command)
+
+    return {}

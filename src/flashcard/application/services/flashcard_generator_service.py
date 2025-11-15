@@ -78,7 +78,7 @@ class FlashcardGeneratorService:
             # 5️⃣ Return total flashcard count
             return stories.get_all_flashcards_count()
 
-        except Exception as ex:
+        except Exception:
             # Rollback deck if it’s newly created
             if not deck.is_existing_deck:
                 await self.deck_repository.remove(deck.get_deck())

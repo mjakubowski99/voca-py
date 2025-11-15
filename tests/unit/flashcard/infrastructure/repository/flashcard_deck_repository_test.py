@@ -1,6 +1,5 @@
 import pytest
 from punq import Container
-from sqlalchemy.ext.asyncio import AsyncSession
 from src.flashcard.domain.models.deck import Deck
 from tests.factory import OwnerFactory, FlashcardDeckFactory
 from src.flashcard.domain.value_objects import FlashcardDeckId
@@ -8,7 +7,6 @@ from src.flashcard.infrastructure.repository.flashcard_deck_repository import (
     FlashcardDeckRepository,
 )
 from src.shared.enum import LanguageLevel
-from core.container import container
 
 
 @pytest.fixture

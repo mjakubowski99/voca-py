@@ -62,15 +62,24 @@ class LearningSession(BaseModel):
         self, step_id: LearningSessionStepId, exercise: UnscrambleWordExercise
     ):
         self.new_steps.append(
-            LearningSessionStep(id=step_id, rating=None, unscramble_word_exercise=exercise)
+            LearningSessionStep(
+                id=step_id,
+                rating=None,
+                unscramble_word_exercise=exercise,
+                exercise_entry_id=exercise.exercise_entries[0].id,
+            )
         )
 
     def add_word_match_exercise(self, step_id: LearningSessionStepId, exercise: WordMatchExercise):
-        self.new_steps.append(
-            LearningSessionStep(
-                id=step_id, rating=None, flashcard_exercise=None, word_match_exercise=exercise
+        for index, entry in enumerate(exercise.exercise_entries):
+            self.new_steps.append(
+                LearningSessionStep(
+                    id=LearningSessionStepId.no_id(),
+                    rating=None,
+                    word_match_exercise=exercise,
+                    exercise_entry_id=entry.id,
+                )
             )
-        )
 
     def pick_next_activity_type(self) -> LearningActivityType:
         import random
@@ -80,6 +89,8 @@ class LearningSession(BaseModel):
                 return LearningActivityType.FLASHCARDS
             case SessionType.UNSCRAMBLE_WORDS:
                 return LearningActivityType.UNSCRAMBLE_WORDS
+            case SessionType.WORD_MATCH:
+                return LearningActivityType.WORD_MATCH
             case SessionType.MIXED:
                 return random.choice(
                     [LearningActivityType.FLASHCARDS, LearningActivityType.UNSCRAMBLE_WORDS]
@@ -92,10 +103,4 @@ class LearningSession(BaseModel):
         if self.progress >= self.limit:
             return False
 
-        if len(self.new_steps) == 0:
-            return True
-
-        # pick last new step
-        last_step = self.new_steps[-1]
-
-        return last_step.rating is not None
+        return len(self.new_steps) == 0

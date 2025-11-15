@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from src.shared.value_objects.user_id import UserId
 from typing import Optional
 from src.shared.enum import UserProvider
-from src.shared.user.iuser import IUser
+from src.user.domain.contracts import IUser
 
 
 class IUserRepository(ABC):

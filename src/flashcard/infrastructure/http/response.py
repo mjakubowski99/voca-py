@@ -1,7 +1,7 @@
 from datetime import datetime
 from pydantic import BaseModel, Field
 from src.shared.enum import Language, LanguageLevel
-from src.flashcard.domain.enum import GeneralRatingType, FlashcardOwnerType
+from src.flashcard.domain.enum import GeneralRatingType, FlashcardOwnerType, Rating
 from typing import List, Optional
 
 
@@ -90,3 +90,18 @@ class DeckDetailsResponse(BaseModel):
     page: int = Field(..., description="Page number", example=1)
     per_page: int = Field(..., description="Items per page", example=15)
     flashcards_count: int = Field(..., description="Count of flashcards in deck", example=15)
+
+
+class BulkDeleteFlashcardsResponse(BaseModel):
+    deleted_count: int = Field(..., description="Number of flashcards deleted", example=2)
+
+
+class RatingStat(BaseModel):
+    rating: Rating = Field(..., description="Rating")
+    rating_percentage: float = Field(..., description="Rating percentage")
+
+    model_config = {"arbitrary_types_allowed": True}
+
+
+class RatingStatsResponse(BaseModel):
+    stats: List[RatingStat] = Field(..., description="List of rating stats")

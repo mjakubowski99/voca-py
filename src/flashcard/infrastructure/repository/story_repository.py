@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.flashcard.application.repository.contracts import IStoryRepository
 from src.flashcard.domain.models.story import Story, StoryFlashcard
 from src.flashcard.domain.models.story_collection import StoryCollection
-from src.flashcard.domain.value_objects import FlashcardId
+from src.flashcard.domain.value_objects import FlashcardDeckId, FlashcardId
 from src.shared.value_objects.story_id import StoryId
 from src.flashcard.infrastructure.repository.flashcard_repository import FlashcardRepository
 from core.models import StoryFlashcards, Stories
@@ -47,22 +47,22 @@ class StoryRepository(IStoryRepository):
         if not rows:
             return None
 
-        flashcard_ids = [row.flashcard_id for row in rows]
-        flashcards = await self.mapper.find_many_for_user(flashcard_ids, user_id)
+        flashcard_ids = [FlashcardId(row.flashcard_id) for row in rows]
+        flashcards = await self.flashcard_repo.find_many(flashcard_ids)
 
         story_flashcards = []
-        for row in rows:
+        for index, row in enumerate(rows):
             flashcard = next((f for f in flashcards if f.id.value == row.flashcard_id), None)
             story_flashcards.append(
                 StoryFlashcard(
                     story_id=StoryId(row.story_id),
-                    story_row_id=row.story_id,
+                    story_index=index,
                     sentence_override=row.sentence_override,
                     flashcard=flashcard,
                 )
             )
 
-        return Story(story_id, story_flashcards)
+        return Story(id=story_id, flashcards=story_flashcards)
 
     async def save_many(self, stories: StoryCollection) -> None:
         """

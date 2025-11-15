@@ -12,6 +12,7 @@ from src.study.domain.value_objects import ExerciseEntryId, LearningSessionStepI
 class LearningSessionStep(BaseModel):
     id: LearningSessionStepId
     rating: Optional[Rating]
+    exercise_entry_id: Optional[ExerciseEntryId] = None
     flashcard_exercise: Optional[IFlashcard] = None
     unscramble_word_exercise: Optional[UnscrambleWordExercise] = None
     word_match_exercise: Optional[WordMatchExercise] = None
@@ -43,6 +44,8 @@ class LearningSessionStep(BaseModel):
             return self.flashcard_exercise.get_flashcard_id()
         if self.unscramble_word_exercise:
             return self.unscramble_word_exercise.exercise_entries[0].flashcard_id
+        if self.word_match_exercise:
+            return self.word_match_exercise.get_current_entry().flashcard_id
         raise Exception("Unknown flashcard type")
 
     def get_exercise_type(self) -> Optional[ExerciseType]:
@@ -50,11 +53,9 @@ class LearningSessionStep(BaseModel):
             return None
         if self.unscramble_word_exercise:
             return ExerciseType.UNSCRAMBLE_WORDS
+        if self.word_match_exercise:
+            return ExerciseType.WORD_MATCH
         raise Exception("Unknown exercise type")
 
     def get_exercise_entry_id(self) -> Optional[ExerciseEntryId]:
-        if self.flashcard_exercise:
-            return None
-        if self.unscramble_word_exercise:
-            return self.unscramble_word_exercise.exercise_entries[0].id
-        raise Exception("Unknown exercise type")
+        return self.exercise_entry_id

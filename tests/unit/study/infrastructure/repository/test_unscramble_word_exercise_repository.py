@@ -42,7 +42,7 @@ async def test_create_and_find_unscramble_word_exercise(
         emoji="🍌",
         flashcard_id=FlashcardId(1),
     )
-    exercise_id = ExerciseId(value=exercise.id)
+    exercise_id = ExerciseId(value=exercise.exercise_id)
 
     found = await repository.find(exercise_id)
 
@@ -72,7 +72,7 @@ async def test_find_by_entry_id_should_return_exercise(
         flashcard_id=FlashcardId(1),
     )
     entry_id = await repository.session.scalar(
-        select(ExerciseEntries.id).where(ExerciseEntries.exercise_id == exercise.id)
+        select(ExerciseEntries.id).where(ExerciseEntries.exercise_id == exercise.exercise_id)
     )
 
     entry_id = ExerciseEntryId(value=entry_id)

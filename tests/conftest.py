@@ -3,6 +3,7 @@ import pytest
 from rich.console import Console
 from rich.table import Table
 from sqlalchemy import text
+from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy import event
@@ -26,6 +27,8 @@ from tests.factory import (
     WordMatchExerciseFactory,
     LearningSessionFactory,
     LearningSessionFlashcardFactory,
+    StoryFactory,
+    StoryFlashcardFactory,
 )
 from src.shared.util.hash import IHash
 from tests.asserts import *
@@ -58,7 +61,7 @@ def dump(capsys):
 @pytest.fixture
 def dump_db(dump, session):
     async def _dump_db(model: type, limit: int = 20):
-        result = await session.execute(model.select().limit(limit))
+        result = await session.execute(select(model).limit(limit))
         rows = result.scalars().all()
         if not rows:
             dump(f"No data found in {model.__tablename__}")
@@ -69,6 +72,11 @@ def dump_db(dump, session):
         for row in rows:
             table.add_row(*(str(getattr(row, col.name)) for col in model.__table__.columns))
         dump(table)
+
+        import sys
+
+        sys.stderr.write(str(table) + "\n")
+        sys.stderr.flush()
 
     return _dump_db
 
@@ -251,3 +259,13 @@ def learning_session_factory(
 @pytest.fixture
 def learning_session_flashcard_factory(session) -> LearningSessionFlashcardFactory:
     return LearningSessionFlashcardFactory(session)
+
+
+@pytest.fixture
+def story_flashcard_factory(session) -> StoryFlashcardFactory:
+    return StoryFlashcardFactory(session)
+
+
+@pytest.fixture
+def story_factory(session, flashcard_factory) -> StoryFactory:
+    return StoryFactory(session, flashcard_factory)

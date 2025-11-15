@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import logging
 from typing import List, Optional
 
 from sqlalchemy import select, or_, text, update, insert
@@ -78,6 +79,8 @@ class SmTwoFlashcardRepository(ISmTwoFlashcardRepository):
             repetition_interval = Decimal(str(min(flashcard.repetition_interval, 9999)))
 
             if existing is None:
+                logger = logging.getLogger()
+                logger.info(f"Saving sm two flashcard: {flashcard.rating.value}")
                 await self.session.execute(
                     insert(SmTwoFlashcardsTable).values(
                         flashcard_id=flashcard.flashcard_id.value,
@@ -93,6 +96,8 @@ class SmTwoFlashcardRepository(ISmTwoFlashcardRepository):
                     )
                 )
             else:
+                logger = logging.getLogger()
+                logger.info(f"Saving sm two flashcard: {flashcard.rating.value}")
                 await self.session.execute(
                     update(SmTwoFlashcardsTable)
                     .where(SmTwoFlashcardsTable.flashcard_id == flashcard.flashcard_id.value)
@@ -238,8 +243,8 @@ class SmTwoFlashcardRepository(ISmTwoFlashcardRepository):
 
     def _map_sm_two(self, row: SmTwoFlashcardsTable) -> SmTwoFlashcard:
         return SmTwoFlashcard(
-            user_id=UserId(row.user_id),
-            flashcard_id=FlashcardId(row.flashcard_id),
+            user_id=UserId(value=row.user_id),
+            flashcard_id=FlashcardId(value=row.flashcard_id),
             repetition_ratio=float(row.repetition_ratio),
             repetition_interval=float(row.repetition_interval),
             repetition_count=row.repetition_count,

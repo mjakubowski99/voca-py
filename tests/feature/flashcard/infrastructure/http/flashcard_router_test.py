@@ -1,17 +1,21 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import select
-from core.models import Flashcards, Stories, StoryFlashcards
+from core.models import FlashcardDecks, Flashcards, Stories, StoryFlashcards
 from src.flashcard.domain.models.owner import Owner
 from src.shared.value_objects.user_id import UserId
+from src.study.domain.enum import Rating
 from tests.client import HttpClient
-from tests.fixtures.api_response import *
 from unittest.mock import AsyncMock, MagicMock, patch
 from tests.factory import (
     FlashcardDeckFactory,
+    FlashcardFactory,
+    LearningSessionFactory,
+    LearningSessionFlashcardFactory,
     OwnerFactory,
     UserFactory,
 )
 import pytest
+from tests.fixtures.api_response import *
 
 
 @pytest.mark.asyncio
@@ -160,6 +164,227 @@ async def test_get_admin_decks_return_admin_decks_for_user(
 
     response = await client.get(
         "/api/v2/flashcards/decks/by-admin",
+        headers={"Authorization": "Bearer token"},
+    )
+
+    assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_create_flashcard_should_create_flashcard(
+    client: HttpClient,
+    user_factory: UserFactory,
+    deck_factory: FlashcardDeckFactory,
+    assert_db_has,
+):
+    user = await user_factory.create()
+    owner = Owner.from_user(UserId(value=user.id))
+    deck = await deck_factory.create(owner)
+
+    client.login(user)
+    response = await client.post(
+        "/api/v2/flashcards",
+        json={
+            "flashcard_deck_id": deck.id,
+            "front_word": "cat",
+            "back_word": "kot",
+            "front_context": "The cat is sleeping",
+            "back_context": "Kot leży na kanapie",
+            "language_level": "A1",
+            "emoji": "🐱",
+        },
+    )
+
+    assert response.status_code == 200
+    await assert_db_has(
+        Flashcards,
+        {
+            "flashcard_deck_id": deck.id,
+            "front_word": "cat",
+            "back_word": "kot",
+            "front_context": "The cat is sleeping",
+            "back_context": "Kot leży na kanapie",
+            "language_level": "A1",
+            "emoji": "🐱",
+            "user_id": user.id,
+            "admin_id": None,
+        },
+    )
+
+
+@pytest.mark.asyncio
+async def test_update_flashcard_should_update_flashcard(
+    client: HttpClient,
+    user_factory: UserFactory,
+    deck_factory: FlashcardDeckFactory,
+    flashcard_factory: FlashcardFactory,
+    assert_db_has,
+):
+    user = await user_factory.create()
+    owner = Owner.from_user(UserId(value=user.id))
+    deck = await deck_factory.create(owner)
+    flashcard = await flashcard_factory.create(deck, owner)
+
+    client.login(user)
+    response = await client.put(
+        f"/api/v2/flashcards/{flashcard.id}",
+        json={
+            "flashcard_deck_id": deck.id,
+            "front_word": "dog",
+            "back_word": "pies",
+            "front_context": "The dog is barking",
+            "back_context": "Pies szczeka",
+            "language_level": "A1",
+            "emoji": "🐶",
+        },
+    )
+
+    assert response.status_code == 200
+    await assert_db_has(
+        Flashcards,
+        {
+            "flashcard_deck_id": deck.id,
+            "front_word": "dog",
+            "back_word": "pies",
+            "front_context": "The dog is barking",
+            "back_context": "Pies szczeka",
+            "language_level": "A1",
+            "emoji": "🐶",
+            "user_id": user.id,
+            "admin_id": None,
+        },
+    )
+
+
+@pytest.mark.asyncio
+async def test_bulk_delete_flashcards_should_delete_flashcards(
+    client: HttpClient,
+    user_factory: UserFactory,
+    deck_factory: FlashcardDeckFactory,
+    flashcard_factory: FlashcardFactory,
+    assert_db_missing,
+):
+    user = await user_factory.create()
+    owner = Owner.from_user(UserId(value=user.id))
+    deck = await deck_factory.create(owner)
+    flashcard = await flashcard_factory.create(deck, owner)
+
+    client.login(user)
+    response = await client.client.request(
+        "DELETE",
+        url="/api/v2/flashcards/bulk-delete",
+        json={"flashcard_ids": [flashcard.id]},
+    )
+
+    assert response.status_code == 200
+    await assert_db_missing(Flashcards, {"id": flashcard.id})
+
+
+@pytest.mark.asyncio
+async def test_merge_decks_should_merge_decks(
+    client: HttpClient,
+    user_factory: UserFactory,
+    deck_factory: FlashcardDeckFactory,
+    flashcard_factory: FlashcardFactory,
+    assert_db_has,
+    assert_db_missing,
+):
+    user = await user_factory.create()
+    owner = Owner.from_user(UserId(value=user.id))
+    deck1 = await deck_factory.create(owner)
+    deck2 = await deck_factory.create(owner)
+    flashcard = await flashcard_factory.create(deck1, owner)
+
+    client.login(user)
+    response = await client.post(
+        f"/api/v2/flashcards/decks/{deck1.id}/merge/{deck2.id}",
+        headers={"Authorization": "Bearer token"},
+    )
+
+    assert response.status_code == 200
+    await assert_db_missing(FlashcardDecks, {"id": deck1.id})
+    await assert_db_has(FlashcardDecks, {"id": deck2.id})
+
+
+@pytest.mark.asyncio
+async def test_get_rating_stats_for_deck_should_return_rating_stats(
+    client: HttpClient,
+    user_factory: UserFactory,
+    deck_factory: FlashcardDeckFactory,
+    flashcard_factory: FlashcardFactory,
+    learning_session_factory: LearningSessionFactory,
+    learning_session_flashcard_factory: LearningSessionFlashcardFactory,
+    dump,
+):
+    user = await user_factory.create()
+    owner = Owner.from_user(UserId(value=user.id))
+    deck = await deck_factory.create(owner)
+    flashcard = await flashcard_factory.create(deck, owner)
+    session = await learning_session_factory.create(user_id=user.id, deck=deck)
+    session_step = await learning_session_flashcard_factory.create(
+        learning_session=session, flashcard=flashcard, rating=Rating.VERY_GOOD
+    )
+
+    client.login(user)
+    response = await client.get(
+        f"/api/v2/flashcards/decks/{deck.id}/rating-stats",
+        headers={"Authorization": "Bearer token"},
+    )
+
+    assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_get_rating_stats_for_user_should_return_rating_stats(
+    client: HttpClient,
+    user_factory: UserFactory,
+    deck_factory: FlashcardDeckFactory,
+    flashcard_factory: FlashcardFactory,
+    learning_session_factory: LearningSessionFactory,
+    learning_session_flashcard_factory: LearningSessionFlashcardFactory,
+    dump,
+):
+    user = await user_factory.create()
+    owner = Owner.from_user(UserId(value=user.id))
+    deck = await deck_factory.create(owner)
+    flashcard = await flashcard_factory.create(deck, owner)
+    session = await learning_session_factory.create(user_id=user.id, deck=deck)
+    session_step = await learning_session_flashcard_factory.create(
+        learning_session=session, flashcard=flashcard, rating=Rating.VERY_GOOD
+    )
+
+    client.login(user)
+    response = await client.get(
+        f"/api/v2/flashcards/by-user/rating-stats",
+        headers={"Authorization": "Bearer token"},
+    )
+
+    assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_get_rating_stats_for_admin_should_return_rating_stats(
+    client: HttpClient,
+    user_factory: UserFactory,
+    owner_factory: OwnerFactory,
+    deck_factory: FlashcardDeckFactory,
+    flashcard_factory: FlashcardFactory,
+    learning_session_factory: LearningSessionFactory,
+    learning_session_flashcard_factory: LearningSessionFlashcardFactory,
+    dump,
+):
+    user = await user_factory.create()
+    admin = await owner_factory.create_admin_owner()
+    deck = await deck_factory.create(admin)
+    flashcard = await flashcard_factory.create(deck, admin)
+    session = await learning_session_factory.create(user_id=user.id, deck=deck)
+    session_step = await learning_session_flashcard_factory.create(
+        learning_session=session, flashcard=flashcard, rating=Rating.VERY_GOOD
+    )
+
+    client.login(user)
+    response = await client.get(
+        f"/api/v2/flashcards/by-admin/rating-stats",
         headers={"Authorization": "Bearer token"},
     )
 

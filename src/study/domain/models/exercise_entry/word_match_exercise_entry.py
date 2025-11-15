@@ -19,3 +19,16 @@ class WordMatchExerciseEntry(ExerciseEntry):
 
     def get_sentence(self) -> str:
         return self.sentence
+
+    def get_sentence_part_before_word(self) -> str:
+        if self.word not in self.sentence:
+            return self.sentence
+        return self.sentence.split(self.word, 1)[0]
+
+    def get_sentence_part_after_word(self) -> str:
+        if self.word not in self.sentence:
+            return ""
+        return self.sentence.split(self.word, 1)[1]
+
+    def is_answered(self) -> bool:
+        return self.last_answer_correct if self.last_answer_correct is not None else False

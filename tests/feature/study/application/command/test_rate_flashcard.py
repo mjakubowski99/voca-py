@@ -28,6 +28,7 @@ async def test_rate_flashcard(
     learning_session_factory: LearningSessionFactory,
     learning_session_flashcard_factory: LearningSessionFlashcardFactory,
     assert_db_has,
+    dump_db,
 ):
     user = await user_factory.create_auth_user()
 
@@ -41,7 +42,7 @@ async def test_rate_flashcard(
     session_id = SessionId(value=session.id)
     step_id = LearningSessionStepId(value=session_step.id)
 
-    await handler.handle(user, session_id, Rating.WEAK)
+    await handler.handle(user, step_id, Rating.WEAK)
 
     await assert_db_has(
         LearningSessionFlashcards, {"id": step_id.value, "rating": Rating.WEAK.value}

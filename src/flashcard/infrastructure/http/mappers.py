@@ -2,6 +2,8 @@ from typing import List
 from core.generics import ResponseWrapper
 from src.flashcard.application.dto.deck_details_read import DeckDetailsRead
 from src.flashcard.application.dto.owner_deck_read import OwnerDeckRead
+from src.flashcard.domain.models.flashcard import Flashcard
+from src.flashcard.domain.enum import GeneralRatingType
 from src.flashcard.infrastructure.http.request import GetAdminDecksRequest, GetUserDecksRequest
 from src.flashcard.infrastructure.http.response import (
     DeckDetailsResponse,
@@ -103,6 +105,32 @@ def generate_flashcards_result_resource_mapper(
                 page=deck.page,
                 per_page=deck.per_page,
                 flashcards_count=deck.count,
+            )
+        ]
+    )
+
+
+def create_flashcard_response_mapper(
+    flashcard: Flashcard,
+) -> ResponseWrapper[FlashcardResponse]:
+    """
+    Maps a Flashcard domain model to a FlashcardResponse for the create endpoint.
+    """
+    return ResponseWrapper[FlashcardResponse](
+        data=[
+            FlashcardResponse(
+                id=flashcard.id.value,
+                front_word=flashcard.front_word,
+                front_lang=flashcard.front_lang.get_enum(),
+                back_word=flashcard.back_word,
+                back_lang=flashcard.back_lang.get_enum(),
+                front_context=flashcard.front_context,
+                back_context=flashcard.back_context,
+                rating=GeneralRatingType.NEW,  # New flashcard has no rating yet
+                language_level=flashcard.level,
+                rating_percentage=0.0,  # New flashcard has 0% rating
+                emoji=flashcard.emoji.to_unicode() if flashcard.emoji else None,
+                owner_type=flashcard.get_owner_type(),
             )
         ]
     )

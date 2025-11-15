@@ -31,3 +31,12 @@ class LoginRequest(BaseModel):
             max_length=128,
         ),
     ] = Field(..., description="Password", example="password123")
+
+
+class DeleteUserRequest(BaseModel):
+    email: str = Field(..., description="User email for verification", example="email@email.com")
+
+
+class UpdateLanguageRequest(BaseModel):
+    user_language: str = Field(..., description="User's preferred language", example="de")
+    learning_language: str = Field(..., description="Language the user is learning", example="de")

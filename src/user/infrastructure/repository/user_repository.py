@@ -99,7 +99,7 @@ class UserRepository(IUserRepository):
                 password=user.get_password(),
                 user_language=user.get_user_language().get_value(),
                 learning_language=user.get_learning_language().get_value(),
-                profile_completed=user.profile_completed(),
+                profile_completed=user.get_profile_completed(),
             )
         )
         await self.session.execute(stmt)

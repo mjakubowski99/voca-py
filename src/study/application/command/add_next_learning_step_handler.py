@@ -44,7 +44,14 @@ class AddNextLearningStepHandler:
                         LearningSessionStepId.no_id(),
                         exercise,
                     )
+                case LearningActivityType.WORD_MATCH:
+                    exercise = await self.exercise_factory.build_word_match(context)
 
-        await self.session_repository.save_steps(session)
+                    session.add_word_match_exercise(
+                        LearningSessionStepId.no_id(),
+                        exercise,
+                    )
+
+        await self.session_repository.save_new_steps(session)
 
         return session

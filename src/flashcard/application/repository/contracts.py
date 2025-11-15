@@ -1,4 +1,6 @@
 from abc import ABC, abstractmethod
+from src.flashcard.application.dto.rating_stats import RatingStats
+from src.flashcard.domain.enum import FlashcardOwnerType
 from src.flashcard.domain.models.sm_two_flashcards import SmTwoFlashcards
 from src.flashcard.application.dto.deck_details_read import DeckDetailsRead
 from src.flashcard.application.dto.owner_deck_read import OwnerDeckRead
@@ -114,6 +116,20 @@ class IFlashcardDeckReadRepository(ABC):
         pass
 
 
+class IFlashcardReadRepository(ABC):
+    @abstractmethod
+    async def find_flashcard_stats(
+        self,
+        front_lang: Language,
+        back_lang: Language,
+        deck_id: Optional[FlashcardDeckId] = None,
+        user_id: Optional[UserId] = None,
+        flashcard_owner_type: Optional[FlashcardOwnerType] = None,
+    ) -> RatingStats:
+        """Finds a deck by its ID."""
+        pass
+
+
 class IFlashcardDuplicateRepository(ABC):
     @abstractmethod
     async def get_already_saved_front_words(
@@ -174,6 +190,11 @@ class IFlashcardRepository(ABC):
         """Return random flashcards from a specific deck, excluding certain IDs."""
 
     @abstractmethod
+    async def create(self, flashcard: Flashcard) -> FlashcardId:
+        """Insert a single flashcard and return its ID."""
+        pass
+
+    @abstractmethod
     async def create_many(self, flashcards: List[Flashcard]) -> None:
         """Insert multiple flashcards in bulk."""
 
@@ -202,6 +223,12 @@ class IFlashcardRepository(ABC):
         self, actual_deck_id: FlashcardDeckId, new_deck_id: FlashcardDeckId
     ) -> None:
         """Move all flashcards from one deck to another."""
+
+    @abstractmethod
+    async def replace_in_sessions(
+        self, actual_deck_id: FlashcardDeckId, new_deck_id: FlashcardDeckId
+    ) -> None:
+        """Move all learning sessions from one deck to another."""
 
 
 class FlashcardSortCriteria(Enum):

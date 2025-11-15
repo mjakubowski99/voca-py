@@ -1,5 +1,5 @@
 from typing import List
-from sqlalchemy import select, update, delete, func
+from sqlalchemy import select, text, update, delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import insert
 from core.models import LearningSessionFlashcards, LearningSessions
@@ -16,16 +16,21 @@ from src.study.domain.value_objects import ExerciseEntryId, LearningSessionStepI
 from src.study.infrastructure.repository.unscramble_word_exercise_repository import (
     UnscrambleWordExerciseRepository,
 )
+from src.study.infrastructure.repository.word_match_exercise_repository import (
+    WordMatchExerciseRepository,
+)
 
 
 class LearningSessionRepository(ISessionRepository):
     def __init__(
         self,
         unscramble_repository: UnscrambleWordExerciseRepository,
+        word_match_repository: WordMatchExerciseRepository,
         flashcard_facade: IFlashcardFacade,
         session: AsyncSession,
     ):
         self.unscramble_repository = unscramble_repository
+        self.word_match_repository = word_match_repository
         self.flashcard_facade = flashcard_facade
         self.session = session
 
@@ -66,7 +71,7 @@ class LearningSessionRepository(ISessionRepository):
 
         return session_obj
 
-    async def save_steps(self, session_obj: LearningSession) -> None:
+    async def save_new_steps(self, session_obj: LearningSession) -> None:
         if session_obj.new_steps:
             insert_data = [
                 {
@@ -79,6 +84,7 @@ class LearningSessionRepository(ISessionRepository):
                     "exercise_entry_id": step.get_exercise_entry_id(),
                 }
                 for step in session_obj.new_steps
+                if step.id.is_empty()
             ]
 
             stmt_insert = (
@@ -92,8 +98,8 @@ class LearningSessionRepository(ISessionRepository):
 
         await self.session.commit()
 
-        for i, step in enumerate(session_obj.new_steps):
-            session_obj.new_steps[i].id = LearningSessionStepId(value=inserted_ids[i])
+        for index, inserted_id in enumerate(inserted_ids):
+            session_obj.new_steps[index].id = LearningSessionStepId(value=inserted_id)
 
         return session_obj
 
@@ -155,11 +161,18 @@ class LearningSessionRepository(ISessionRepository):
                         ExerciseEntryId(row.exercise_entry_id)
                     ),
                 )
+            if row.exercise_type == ExerciseType.WORD_MATCH.to_number():
+                learning_session.add_word_match_exercise(
+                    LearningSessionStepId(value=row.id),
+                    await self.word_match_repository.find_by_entry_id(
+                        ExerciseEntryId(row.exercise_entry_id)
+                    ),
+                )
 
         return learning_session
 
     async def delete_all_for_user(self, user_id: UserId) -> None:
-        stmt = delete(LearningSession).where(LearningSession.user_id == user_id.value)
+        stmt = delete(LearningSessions).where(LearningSessions.user_id == user_id.value)
         await self.session.execute(stmt)
         await self.session.commit()
 
@@ -184,7 +197,6 @@ class LearningSessionRepository(ISessionRepository):
         )
 
         await self.session.execute(stmt)
-        await self.session.commit()
 
         stmt = select(LearningSessionFlashcards.flashcard_id).where(
             LearningSessionFlashcards.id == step_id.value
