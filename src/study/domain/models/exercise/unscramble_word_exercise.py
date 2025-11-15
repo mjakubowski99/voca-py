@@ -123,9 +123,9 @@ class UnscrambleWordExercise(Exercise):
         return self.scrambled_word
 
     def get_keyboard(self) -> List[str]:
-        keyboard = list(self.scrambled_word)
+        keyboard = list(self.word_translation)
         random.shuffle(keyboard)
         return keyboard
 
     def get_indexed_keyboard(self) -> List[dict]:
-        return [{"c": c, "i": i} for i, c in enumerate(list(self.scrambled_word))]
+        return [{"c": c, "i": i} for i, c in enumerate(list(self.word_translation))]

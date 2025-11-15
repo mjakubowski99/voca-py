@@ -61,7 +61,7 @@ async def create_session(
 
 
 @router.put(
-    "/api/v2/flashcards/session/{session_id}/rate-flashcard",
+    "/api/v2/flashcards/session/{session_id}/rate-flashcards",
     response_model=ResponseWrapper[LearningSessionResponse],
 )
 async def rate_flashcard(
@@ -92,7 +92,7 @@ async def get_session(
 ) -> ResponseWrapper[LearningSessionResponse]:
     add_step: AddNextLearningStepHandler = container.resolve(AddNextLearningStepHandler)
 
-    session = await add_step.handle(user, LearningSessionId(session_id))
+    session = await add_step.handle(user, LearningSessionId(value=session_id))
 
     return learning_session_response_mapper(session)
 

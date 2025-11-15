@@ -60,7 +60,7 @@ async def get_user_decks(
     return user_flashcard_deck_resource_mapper(request, decks)
 
 
-@router.get("/api/v2/flashcards/decks/by-admin", tags=["Flashcard"])
+@router.get("/api/v2/flashcards/decks/by-admins", tags=["Flashcard"])
 async def get_admin_decks(
     request: GetAdminDecksRequest = Depends(get_admin_decks_query),
     user: IUser = Depends(get_current_user),
@@ -72,6 +72,19 @@ async def get_admin_decks(
     )
 
     return admin_flashcard_deck_resource_mapper(request, decks)
+
+
+@router.get("/api/v2/flashcards/decks/{flashcard_deck_id:int}")
+async def get_flashcard_deck(
+    flashcard_deck_id: int = Path(..., description="Flashcard deck ID", ge=1),
+    user: IUser = Depends(get_current_user),
+    container: Container = Depends(get_container),
+) -> ResponseWrapper[DeckDetailsResponse]:
+    get_deck: GetDeckDetails = container.resolve(GetDeckDetails)
+
+    deck = await get_deck.get(user.get_id(), FlashcardDeckId(value=flashcard_deck_id), 1, 15)
+
+    return generate_flashcards_result_resource_mapper(deck)
 
 
 @router.post("/api/v2/flashcards/decks/generate-flashcards", tags=["Flashcard"])
@@ -166,7 +179,7 @@ async def bulk_delete_flashcards(
     result = await bulk_delete_handler.handle(command)
 
     return ResponseWrapper[BulkDeleteFlashcardsResponse](
-        data=[BulkDeleteFlashcardsResponse(deleted_count=result.deleted_count)]
+        data=BulkDeleteFlashcardsResponse(deleted_count=result.deleted_count)
     )
 
 

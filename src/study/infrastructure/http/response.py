@@ -57,7 +57,7 @@ class ExerciseWrapperResponse(BaseModel):
     )
 
 
-class LearningSessionResponse(BaseModel):
+class SessionDetailsResponse(BaseModel):
     id: int = Field(..., description="Learning session ID")
     cards_per_session: int = Field(..., description="Cards per session")
     is_finished: bool = Field(..., description="Whether the session is finished")
@@ -66,3 +66,7 @@ class LearningSessionResponse(BaseModel):
     score: int = Field(..., description="Score after session finished")
     next_flashcards: List[FlashcardResponse] = Field(..., description="Next flashcards")
     next_exercises: List[ExerciseWrapperResponse] = Field(..., description="Next exercises")
+
+
+class LearningSessionResponse(BaseModel):
+    session: SessionDetailsResponse = Field(..., description="Session details")

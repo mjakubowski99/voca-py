@@ -2,6 +2,7 @@ from typing import List
 from sqlalchemy import select, text, update, delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import insert
+from core.logging import logger
 from core.models import LearningSessionFlashcards, LearningSessions
 from src.shared.flashcard.contracts import IFlashcardFacade
 from src.shared.value_objects.flashcard_id import FlashcardId
@@ -87,6 +88,9 @@ class LearningSessionRepository(ISessionRepository):
                 if step.id.is_empty()
             ]
 
+            if len(insert_data) == 0:
+                return session_obj
+
             stmt_insert = (
                 insert(LearningSessionFlashcards)
                 .values(insert_data)
@@ -104,7 +108,7 @@ class LearningSessionRepository(ISessionRepository):
         return session_obj
 
     async def find(self, session_id: LearningSessionId) -> LearningSession:
-        stmt = select(LearningSessions).where(LearningSessions.id == session_id.value)
+        stmt = select(LearningSessions).where(LearningSessions.id == session_id.get_value())
         result = await self.session.execute(stmt)
         session_obj = result.scalar_one_or_none()
 
@@ -137,6 +141,7 @@ class LearningSessionRepository(ISessionRepository):
         stmt = (
             select(
                 LearningSessionFlashcards.id,
+                LearningSessionFlashcards.learning_session_id,
                 LearningSessionFlashcards.exercise_type,
                 LearningSessionFlashcards.exercise_entry_id,
                 LearningSessionFlashcards.flashcard_id,
@@ -204,3 +209,15 @@ class LearningSessionRepository(ISessionRepository):
 
         result = await self.session.execute(stmt)
         return FlashcardId(value=result.scalar_one())
+
+    async def update_flashcard_rating_by_entry_id(
+        self, entry_id: ExerciseEntryId, rating: Rating
+    ) -> FlashcardId:
+        stmt = (
+            update(LearningSessionFlashcards)
+            .where(LearningSessionFlashcards.exercise_entry_id == entry_id.value)
+            .values(rating=rating.value)
+        )
+
+        await self.session.execute(stmt)
+        await self.session.commit()

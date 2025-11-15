@@ -16,6 +16,11 @@ from config import settings
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
 import core.database as database
+from fastapi.middleware.cors import CORSMiddleware
+
+origins = [
+    "*",
+]
 
 _already_instrumented = False
 
@@ -40,6 +45,14 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.middleware("http")
@@ -74,4 +87,11 @@ app.include_router(flashcard_router)
 app.include_router(study_router)
 
 if __name__ == "__main__":
-    uvicorn.run("src.main:app", host="0.0.0.0", port=8000, reload=True, log_level="info")
+    uvicorn.run(
+        "src.main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True,
+        log_level="info",
+        timeout_keep_alive=60,
+    )

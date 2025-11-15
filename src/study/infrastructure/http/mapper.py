@@ -7,6 +7,7 @@ from src.study.domain.models.learning_session_step import LearningSessionStep
 from src.study.infrastructure.http.response import (
     LearningSessionResponse,
     FlashcardResponse,
+    SessionDetailsResponse,
     UnscrambleWordExerciseResponse,
     WordMatchExerciseResponse,
     ExerciseWrapperResponse,
@@ -133,8 +134,8 @@ def learning_session_response_mapper(
     exercise_steps = [step for step in session.new_steps if step.get_exercise_type() is not None]
 
     return ResponseWrapper[LearningSessionResponse](
-        data=[
-            LearningSessionResponse(
+        data=LearningSessionResponse(
+            session=SessionDetailsResponse(
                 id=session.id.get_value(),
                 cards_per_session=session.limit,
                 is_finished=session.is_finished(),
@@ -146,21 +147,19 @@ def learning_session_response_mapper(
                     _map_exercise(step, links=links, get_links=get_links) for step in exercise_steps
                 ],
             )
-        ]
+        )
     )
 
 
 def rating_stats_response_mapper(rating_stats: RatingStats) -> ResponseWrapper[RatingStatsResponse]:
     return ResponseWrapper[RatingStatsResponse](
-        data=[
-            RatingStatsResponse(
-                stats=[
-                    RatingStat(
-                        rating=rating.rating,
-                        rating_percentage=rating.rating_percentage,
-                    )
-                    for rating in rating_stats.stats
-                ]
-            )
-        ]
+        data=RatingStatsResponse(
+            stats=[
+                RatingStat(
+                    rating=rating.rating,
+                    rating_percentage=rating.rating_percentage,
+                )
+                for rating in rating_stats.stats
+            ]
+        )
     )

@@ -3,6 +3,7 @@ from src.shared.user.iuser import IUser
 from src.shared.value_objects.flashcard_id import FlashcardId
 from src.study.domain.value_objects import ExerciseId
 from src.study.application.repository.contracts import (
+    ISessionRepository,
     IUnscrambleWordExerciseRepository,
     IWordMatchExerciseRepository,
 )
@@ -15,11 +16,13 @@ class SkipExercise:
         self,
         unscramble_repository: IUnscrambleWordExerciseRepository,
         word_match_repository: IWordMatchExerciseRepository,
+        session_repository: ISessionRepository,
         flashcard_facade: IFlashcardFacade,
     ):
         self.unscramble_repository = unscramble_repository
         self.word_match_repository = word_match_repository
         self.flashcard_facade = flashcard_facade
+        self.session_repository = session_repository
 
     async def handle_unscramble(self, user: IUser, exercise_id: ExerciseId):
         exercise = await self.unscramble_repository.find(exercise_id)
@@ -27,6 +30,11 @@ class SkipExercise:
         exercise.skip_exercise()
 
         await self.unscramble_repository.save(exercise)
+
+        await self.session_repository.update_flashcard_rating_by_entry_id(
+            entry_id=exercise.exercise_entries[0].id,
+            rating=Rating.UNKNOWN,
+        )
 
         await self.__save_rating_for_skipped_step(user, exercise.exercise_entries[0].flashcard_id)
 

@@ -30,7 +30,7 @@ from src.user.infrastructure.http.resources import LanguageResource, TokenUserRe
 router = APIRouter()
 
 
-@router.post("/api/user/login", response_model=ResponseWrapper[TokenUserResource])
+@router.post("/api/v2/login", response_model=ResponseWrapper[TokenUserResource])
 async def login(
     request: LoginRequest = Body(...),
     container: Container = Depends(get_container),
@@ -44,20 +44,18 @@ async def login(
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     return ResponseWrapper[TokenUserResource](
-        data=[
-            TokenUserResource(
-                token=await create_token.handle(UserDTO(user)),
-                user=UserResource(
-                    id=user.get_id().get_value(),
-                    name=user.get_name(),
-                    email=user.get_email(),
-                    has_any_session=False,
-                    profile_completed=user.get_profile_completed(),
-                    user_language=user.get_user_language().get_value(),
-                    learning_language=user.get_learning_language().get_value(),
-                ),
-            )
-        ]
+        data=TokenUserResource(
+            token=await create_token.handle(UserDTO(user)),
+            user=UserResource(
+                id=user.get_id().get_value(),
+                name=user.get_name(),
+                email=user.get_email(),
+                has_any_session=False,
+                profile_completed=user.get_profile_completed(),
+                user_language=user.get_user_language().get_value(),
+                learning_language=user.get_learning_language().get_value(),
+            ),
+        )
     )
 
 
@@ -70,17 +68,15 @@ async def current(
     user = await find_user.find_user(user.get_id())
 
     return ResponseWrapper[UserResource](
-        data=[
-            UserResource(
-                id=user.get_id().get_value(),
-                name=user.get_name(),
-                email=user.get_email(),
-                has_any_session=False,
-                profile_completed=user.get_profile_completed(),
-                user_language=user.get_user_language().get_value(),
-                learning_language=user.get_learning_language().get_value(),
-            )
-        ]
+        data=UserResource(
+            id=user.get_id().get_value(),
+            name=user.get_name(),
+            email=user.get_email(),
+            has_any_session=False,
+            profile_completed=user.get_profile_completed(),
+            user_language=user.get_user_language().get_value(),
+            learning_language=user.get_learning_language().get_value(),
+        )
     )
 
 
@@ -111,20 +107,18 @@ async def oauth_login(
     user = await find_user.find_external_user(command.provider_id, command.provider_type)
 
     return ResponseWrapper[TokenUserResource](
-        data=[
-            TokenUserResource(
-                token=await create_token.handle(UserDTO(user)),
-                user=UserResource(
-                    id=user.get_id().get_value(),
-                    name=user.get_name(),
-                    email=user.get_email(),
-                    has_any_session=False,
-                    profile_completed=user.get_profile_completed(),
-                    user_language=user.get_user_language().get_value(),
-                    learning_language=user.get_learning_language().get_value(),
-                ),
-            )
-        ]
+        data=TokenUserResource(
+            token=await create_token.handle(UserDTO(user)),
+            user=UserResource(
+                id=user.get_id().get_value(),
+                name=user.get_name(),
+                email=user.get_email(),
+                has_any_session=False,
+                profile_completed=user.get_profile_completed(),
+                user_language=user.get_user_language().get_value(),
+                learning_language=user.get_learning_language().get_value(),
+            ),
+        )
     )
 
 
