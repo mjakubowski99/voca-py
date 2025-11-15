@@ -30,7 +30,7 @@ async def test_login_success(user_factory: UserFactory, client: AsyncClient):
     await user_factory.create(email="test@example.com", password="secret1234")
 
     response = await client.post(
-        "/api/user/login", json={"username": "test@example.com", "password": "secret1234"}
+        "/api/v2/login", json={"username": "test@example.com", "password": "secret1234"}
     )
 
     assert response.status_code == 200
@@ -81,7 +81,7 @@ async def test_login_invalid_password(client: AsyncClient, user_factory: UserFac
     await user_factory.create(email="test@example.com", password="secret")
 
     response = await client.post(
-        "/api/user/login", json={"username": "test5@example.com", "password": "wrong"}
+        "/api/v2/login", json={"username": "test5@example.com", "password": "wrong"}
     )
 
     assert response.status_code == 422

@@ -1,7 +1,8 @@
 from src.shared.flashcard.contracts import IFlashcardFacade
 from src.shared.user.iuser import IUser
 from src.shared.value_objects.flashcard_id import FlashcardId
-from src.study.domain.value_objects import ExerciseId
+from src.study.domain.models.exercise.exercise import Exercise
+from src.study.domain.value_objects import ExerciseEntryId, ExerciseId
 from src.study.application.repository.contracts import (
     ISessionRepository,
     IUnscrambleWordExerciseRepository,
@@ -31,12 +32,7 @@ class SkipExercise:
 
         await self.unscramble_repository.save(exercise)
 
-        await self.session_repository.update_flashcard_rating_by_entry_id(
-            entry_id=exercise.exercise_entries[0].id,
-            rating=Rating.UNKNOWN,
-        )
-
-        await self.__save_rating_for_skipped_step(user, exercise.exercise_entries[0].flashcard_id)
+        await self._save_unknown_ratings(user, exercise)
 
     async def handle_word_match(self, user: IUser, exercise_id: ExerciseId):
         exercise = await self.word_match_repository.find(exercise_id)
@@ -45,13 +41,24 @@ class SkipExercise:
 
         await self.word_match_repository.save(exercise)
 
-        for entry in exercise.word_match_entries:
-            if entry.is_answered():
+        await self._save_unknown_ratings(user, exercise)
+
+    async def _save_unknown_ratings(self, user: IUser, exercise: Exercise):
+        for entry in exercise.exercise_entries:
+            if entry.answers_count > 0:
                 continue
 
-            await self.__save_rating_for_skipped_step(user, entry.flashcard_id)
+            rating = Rating.UNKNOWN
+            rating_context = RatingContext(
+                user=user, flashcard_id=entry.flashcard_id, rating=rating
+            )
+            await self._save_rating_by_entry_id(user, entry.id, rating)
+            await self.flashcard_facade.new_rating(rating_context)
 
-    async def __save_rating_for_skipped_step(self, user: IUser, flashcard_id: FlashcardId):
-        await self.flashcard_facade.new_rating(
-            RatingContext(user=user, flashcard_id=flashcard_id, rating=Rating.UNKNOWN)
+    async def _save_rating_by_entry_id(
+        self, user: IUser, entry_id: ExerciseEntryId, rating: Rating
+    ):
+        await self.session_repository.update_flashcard_rating_by_entry_id(
+            entry_id=entry_id,
+            rating=rating,
         )

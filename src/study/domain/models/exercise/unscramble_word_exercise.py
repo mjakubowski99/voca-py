@@ -124,6 +124,8 @@ class UnscrambleWordExercise(Exercise):
 
     def get_keyboard(self) -> List[str]:
         keyboard = list(self.word_translation)
+        for _ in range(random.randint(1, 3)):
+            keyboard.append(random.choice(list(self.word_translation)))
         random.shuffle(keyboard)
         return keyboard
 

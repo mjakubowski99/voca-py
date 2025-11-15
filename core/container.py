@@ -19,7 +19,9 @@ from src.study.application.repository.contracts import (
     ISessionRepository,
     IUnscrambleWordExerciseRepository,
 )
-from src.study.infrastructure.repository.session_repository import LearningSessionRepository
+from src.study.infrastructure.repository.learning_session_repository import (
+    LearningSessionRepository,
+)
 from src.study.infrastructure.repository.unscramble_word_exercise_repository import (
     UnscrambleWordExerciseRepository,
 )

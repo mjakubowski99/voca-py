@@ -2,7 +2,7 @@ from punq import Container
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import select
-from core.models import ExerciseEntries, UnscrambleWordExercises
+from core.models import ExerciseEntries, Exercises, UnscrambleWordExercises
 from src.shared.value_objects.flashcard_id import FlashcardId
 from src.study.domain.enum import ExerciseStatus
 from src.study.domain.models.exercise.unscramble_word_exercise import UnscrambleWordExercise
@@ -42,7 +42,7 @@ async def test_create_and_find_unscramble_word_exercise(
         emoji="🍌",
         flashcard_id=FlashcardId(1),
     )
-    exercise_id = ExerciseId(value=exercise.exercise_id)
+    exercise_id = ExerciseId(value=exercise.id)
 
     found = await repository.find(exercise_id)
 
@@ -72,7 +72,7 @@ async def test_find_by_entry_id_should_return_exercise(
         flashcard_id=FlashcardId(1),
     )
     entry_id = await repository.session.scalar(
-        select(ExerciseEntries.id).where(ExerciseEntries.exercise_id == exercise.exercise_id)
+        select(ExerciseEntries.id).where(ExerciseEntries.exercise_id == exercise.id)
     )
 
     entry_id = ExerciseEntryId(value=entry_id)
@@ -106,22 +106,22 @@ async def test_save_should_update_existing_exercise(
         flashcard_id=FlashcardId(1),
     )
     entry_id = await session.scalar(
-        select(ExerciseEntries.id).where(ExerciseEntries.exercise_id == row.exercise_id)
+        select(ExerciseEntries.id).where(ExerciseEntries.exercise_id == row.id)
     )
     entry_id = ExerciseEntryId(value=entry_id)
 
     exercise = UnscrambleWordExercise(
-        id=ExerciseId(value=row.exercise_id),
+        id=ExerciseId(value=row.id),
         user_id=UserId(value=user.id),
         flashcard_id=FlashcardId.no_id(),
         status=ExerciseStatus.IN_PROGRESS,
         answer_entry_id=entry_id,
-        word=row.word,
-        context_sentence=row.context_sentence,
-        word_translation=row.word_translation,
-        context_sentence_translation=row.context_sentence_translation,
-        emoji=Emoji.from_unicode(row.emoji) if row.emoji else None,
-        scrambled_word=row.scrambled_word,
+        word=row.properties["word"],
+        context_sentence=row.properties["context_sentence"],
+        word_translation=row.properties["word_translation"],
+        context_sentence_translation=row.properties["context_sentence_translation"],
+        emoji=Emoji.from_unicode(row.properties["emoji"]) if row.properties["emoji"] else None,
+        scrambled_word=row.properties["scrambled_word"],
         last_answer=UnscrambleWordAnswer(answer_entry_id=entry_id, unscrambled_word="orange"),
         last_answer_correct=False,
         score=0.93,
@@ -158,8 +158,8 @@ async def test_create_should_create_exercise(
 
     # Assert
     await assert_db_has(
-        UnscrambleWordExercises,
+        Exercises,
         {
-            "word": "New word",
+            "user_id": user.id,
         },
     )

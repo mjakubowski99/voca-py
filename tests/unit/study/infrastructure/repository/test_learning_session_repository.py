@@ -21,7 +21,9 @@ from tests.factory import (
     UnscrambleWordExerciseFactory,
     UserFactory,
 )
-from src.study.infrastructure.repository.session_repository import LearningSessionRepository
+from src.study.infrastructure.repository.learning_session_repository import (
+    LearningSessionRepository,
+)
 from unittest.mock import Mock
 
 
@@ -195,7 +197,7 @@ async def test_find_should_build_learning_session_with_unscramble_exercise(
         flashcard_id=FlashcardId(value=flashcard.id),
     )
     entry_id = await session.scalar(
-        select(ExerciseEntries.id).where(ExerciseEntries.exercise_id == exercise.exercise_id)
+        select(ExerciseEntries.id).where(ExerciseEntries.exercise_id == exercise.id)
     )
     await learning_session_flashcard_factory.create(
         learning_session,

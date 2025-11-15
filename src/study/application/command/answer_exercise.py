@@ -29,7 +29,7 @@ class AnswerExercise:
 
     async def handle_unscramble(
         self, user: IUser, entry_id: ExerciseEntryId, unscrambled_word: str, hints_count: int
-    ):
+    ) -> None:
         exercise = await self.unscramble_repository.find_by_entry_id(entry_id)
 
         exercise.assess_answer(
@@ -38,53 +38,34 @@ class AnswerExercise:
             )
         )
 
-        rating = Rating.from_score(exercise.exercise_entries[0].score)
-
         await self.unscramble_repository.save(exercise)
-        await self.session_repository.update_flashcard_rating_by_entry_id(
-            entry_id=exercise.exercise_entries[0].id,
-            rating=rating,
-        )
 
-        rating_context = RatingContext(
-            user=user,
-            flashcard_id=exercise.exercise_entries[0].flashcard_id,
-            rating=rating,
-        )
-        await self.flashcard_facade.new_rating(rating_context)
+        await self._save_ratings(user, exercise)
 
     async def handle_word_match(self, user: IUser, exercise_entry_id: ExerciseEntryId, answer: str):
         exercise = await self.word_match_repository.find_by_entry_id(exercise_entry_id)
 
         exercise.assess_answer(
-            answer=WordMatchAnswer(answer_entry_id=exercise_entry_id, word=answer, hints_count=0)
+            answer=WordMatchAnswer(answer_entry_id=exercise_entry_id, word=answer)
         )
 
         await self.word_match_repository.save(exercise)
 
-        rating = Rating.UNKNOWN
+        await self._save_ratings(user, exercise, save_only_completed=True)
 
-        await self.session_repository.update_flashcard_rating_by_entry_id(
-            entry_id=exercise.exercise_entries[0].id,
-            rating=rating,
-        )
+    async def _save_ratings(
+        self, user: IUser, exercise: Exercise, save_only_completed: bool = False
+    ):
+        for entry in exercise.get_updated_entries():
+            if save_only_completed and not entry.is_last_answer_correct():
+                continue
 
-        rating_context = RatingContext(
-            user=user,
-            flashcard_id=exercise.exercise_entries[0].flashcard_id,
-            rating=rating,
-        )
-        await self.flashcard_facade.new_rating(rating_context)
-
-    async def _save_ratings(self, user: IUser, exercise: Exercise):
-        if exercise.is_completed():
-            for entry in exercise.get_updated_entries():
-                rating_context = RatingContext(
-                    user=user,
-                    flashcard_id=entry.flashcard_id,
-                    rating=Rating.from_score(entry.score),
-                )
-                await self.flashcard_facade.new_rating(rating_context)
+            rating = Rating.from_score(entry.score)
+            rating_context = RatingContext(
+                user=user, flashcard_id=entry.flashcard_id, rating=rating
+            )
+            await self._save_rating_by_entry_id(user, entry.id, rating)
+            await self.flashcard_facade.new_rating(rating_context)
 
     async def _save_rating_by_entry_id(
         self, user: IUser, entry_id: ExerciseEntryId, rating: Rating

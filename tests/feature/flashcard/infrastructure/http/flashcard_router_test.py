@@ -53,7 +53,7 @@ async def test_generate_should_generate_new_flashcards(
             headers={"Authorization": "Bearer token"},
         )
 
-    await assert_db_count(Flashcards, 10, {"flashcard_deck_id": response.json()["data"][0]["id"]})
+    await assert_db_count(Flashcards, 10, {"flashcard_deck_id": response.json()["data"]["id"]})
     assert response.status_code == 200
 
 
@@ -97,7 +97,7 @@ async def test_generate_should_generate_new_flashcards_belonging_to_stories(
     stmt = (
         select(StoryFlashcards, Flashcards.back_word)
         .join(Flashcards, Flashcards.id == StoryFlashcards.flashcard_id)
-        .where(Flashcards.flashcard_deck_id == response.json()["data"][0]["id"])
+        .where(Flashcards.flashcard_deck_id == response.json()["data"]["id"])
     )
 
     result = await session.execute(stmt)
@@ -163,7 +163,7 @@ async def test_get_admin_decks_return_admin_decks_for_user(
     client.login(user)
 
     response = await client.get(
-        "/api/v2/flashcards/decks/by-admin",
+        "/api/v2/flashcards/decks/by-admins",
         headers={"Authorization": "Bearer token"},
     )
 

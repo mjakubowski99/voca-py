@@ -71,5 +71,11 @@ class ISessionRepository(ABC):
         pass
 
     @abstractmethod
+    async def update_flashcard_rating_by_entry_id(
+        self, entry_id: ExerciseEntryId, rating: Rating
+    ) -> FlashcardId:
+        pass
+
+    @abstractmethod
     async def delete_all_for_user(self, user_id: UserId) -> None:
         pass

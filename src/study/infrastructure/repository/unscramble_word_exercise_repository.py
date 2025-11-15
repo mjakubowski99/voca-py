@@ -28,27 +28,15 @@ class UnscrambleWordExerciseRepository(IUnscrambleWordExerciseRepository):
                 Exercises.status,
                 Exercises.exercise_type,
                 Exercises.properties,
-                UnscrambleWordExercises.word,
-                UnscrambleWordExercises.scrambled_word,
-                UnscrambleWordExercises.context_sentence,
-                UnscrambleWordExercises.word_translation,
-                UnscrambleWordExercises.context_sentence_translation,
-                UnscrambleWordExercises.emoji,
                 ExerciseEntries.id.label("exercise_entry_id"),
                 ExerciseEntries.last_answer,
                 ExerciseEntries.last_answer_correct,
                 ExerciseEntries.score,
                 ExerciseEntries.answers_count,
             )
-            .join(UnscrambleWordExercises, Exercises.id == UnscrambleWordExercises.exercise_id)
             .join(ExerciseEntries, ExerciseEntries.exercise_id == Exercises.id)
             .where(Exercises.id == exercise_id.value)
         )
-
-        result = await self.session.execute(text("SELECT * FROM exercises;"))
-        other_rows = result.fetchall()
-        for row in other_rows:
-            row
 
         result = await self.session.execute(query)
         row = result.first()
@@ -66,19 +54,12 @@ class UnscrambleWordExerciseRepository(IUnscrambleWordExerciseRepository):
                 Exercises.status,
                 Exercises.exercise_type,
                 Exercises.properties,
-                UnscrambleWordExercises.word,
-                UnscrambleWordExercises.scrambled_word,
-                UnscrambleWordExercises.context_sentence,
-                UnscrambleWordExercises.word_translation,
-                UnscrambleWordExercises.context_sentence_translation,
-                UnscrambleWordExercises.emoji,
                 ExerciseEntries.id.label("exercise_entry_id"),
                 ExerciseEntries.last_answer,
                 ExerciseEntries.last_answer_correct,
                 ExerciseEntries.score,
                 ExerciseEntries.answers_count,
             )
-            .join(UnscrambleWordExercises, Exercises.id == UnscrambleWordExercises.exercise_id)
             .join(ExerciseEntries, ExerciseEntries.exercise_id == Exercises.id)
             .where(ExerciseEntries.id == entry_id.value)
         )
@@ -101,7 +82,14 @@ class UnscrambleWordExerciseRepository(IUnscrambleWordExerciseRepository):
                 exercise_type=exercise.get_exercise_type().to_number(),
                 user_id=exercise.get_user_id().value,
                 status=exercise.get_status().value,
-                properties={"flashcard_id": exercise.exercise_entries[0].flashcard_id.get_value()},
+                properties={
+                    "flashcard_id": exercise.exercise_entries[0].flashcard_id.get_value(),
+                    "scrambled_word": exercise.get_scrambled_word(),
+                    "word_translation": exercise.get_word_translation(),
+                    "context_sentence": exercise.get_context_sentence(),
+                    "context_sentence_translation": exercise.get_context_sentence_translation(),
+                    "emoji": exercise.get_emoji().to_unicode() if exercise.get_emoji() else None,
+                },
             )
             .returning(Exercises.id)
         )
@@ -109,17 +97,6 @@ class UnscrambleWordExerciseRepository(IUnscrambleWordExerciseRepository):
         result = await self.session.execute(insert_stmt)
         new_id = result.scalar_one()
 
-        await self.session.execute(
-            insert(UnscrambleWordExercises).values(
-                exercise_id=new_id,
-                word=exercise.get_word(),
-                context_sentence=exercise.get_context_sentence(),
-                word_translation=exercise.get_word_translation(),
-                context_sentence_translation=exercise.get_context_sentence_translation(),
-                scrambled_word=exercise.get_scrambled_word(),
-                emoji=exercise.get_emoji().to_unicode() if exercise.get_emoji() else None,
-            )
-        )
         exercise.id = ExerciseId(value=new_id)
 
         entry = exercise.get_exercise_entries()[0]
@@ -139,8 +116,6 @@ class UnscrambleWordExerciseRepository(IUnscrambleWordExerciseRepository):
         )
         entry_id = result.scalar_one()
         exercise.exercise_entries[0].id = ExerciseEntryId(value=entry_id)
-
-        await self.session.commit()
 
         return exercise
 
@@ -168,8 +143,6 @@ class UnscrambleWordExerciseRepository(IUnscrambleWordExerciseRepository):
                 )
             )
 
-        await self.session.commit()
-
     def _map_to_domain(self, row) -> UnscrambleWordExercise:
         entry_id = ExerciseEntryId(row.exercise_entry_id)
 
@@ -179,12 +152,12 @@ class UnscrambleWordExerciseRepository(IUnscrambleWordExerciseRepository):
             flashcard_id=FlashcardId(value=row.properties["flashcard_id"]),
             status=ExerciseStatus(value=row.status),
             answer_entry_id=entry_id,
-            word=row.word,
-            context_sentence=row.context_sentence,
-            word_translation=row.word_translation,
-            context_sentence_translation=row.context_sentence_translation,
-            emoji=Emoji.from_unicode(row.emoji) if row.emoji else None,
-            scrambled_word=row.scrambled_word,
+            word=row.properties["word"],
+            context_sentence=row.properties["context_sentence"],
+            word_translation=row.properties["word_translation"],
+            context_sentence_translation=row.properties["context_sentence_translation"],
+            emoji=Emoji.from_unicode(row.properties["emoji"]) if row.properties["emoji"] else None,
+            scrambled_word=row.properties["scrambled_word"],
             last_answer=UnscrambleWordAnswer(
                 answer_entry_id=entry_id, unscrambled_word=row.last_answer
             )

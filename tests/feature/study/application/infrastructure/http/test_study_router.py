@@ -127,7 +127,7 @@ async def test_rate_flashcard_success(
     )
     client.login(user)
     response = await client.put(
-        f"/api/v2/flashcards/session/{learning_session.id}/rate-flashcard",
+        f"/api/v2/flashcards/session/{learning_session.id}/rate-flashcards",
         json={"ratings": [{"id": session_step.id, "rating": Rating.VERY_GOOD.value}]},
     )
 
@@ -295,12 +295,12 @@ async def test_skip_unscramble_words_exercise_success(
         flashcard_id=FlashcardId(value=flashcard.id),
     )
     exercise_entry_id = await session.scalar(
-        select(ExerciseEntries.id).where(ExerciseEntries.exercise_id == exercise.exercise_id)
+        select(ExerciseEntries.id).where(ExerciseEntries.exercise_id == exercise.id)
     )
 
     client.login(user)
     response = await client.put(
-        f"/api/v2/exercises/unscramble-words/{exercise.exercise_id}/skip",
+        f"/api/v2/exercises/unscramble-words/{exercise.id}/skip",
     )
 
     assert response.status_code == 200
@@ -347,7 +347,7 @@ async def test_answer_unscramble_words_exercise_success(
         flashcard_id=FlashcardId(value=flashcard.id),
     )
     exercise_entry_id = await session.scalar(
-        select(ExerciseEntries.id).where(ExerciseEntries.exercise_id == exercise.exercise_id)
+        select(ExerciseEntries.id).where(ExerciseEntries.exercise_id == exercise.id)
     )
 
     client.login(user)

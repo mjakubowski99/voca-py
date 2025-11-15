@@ -296,13 +296,21 @@ class UnscrambleWordExerciseFactory:
         emoji: str | None = "🍌",
         status: ExerciseStatus = ExerciseStatus.NEW,
         flashcard_id: Optional[FlashcardId] = None,
-    ) -> UnscrambleWordExercises:
+    ) -> Exercises:
         scrambled = scrambled_word or "".join(sorted(word))
         exercise = await self.exercise_factory.create(
             user_id,
             ExerciseType.UNSCRAMBLE_WORDS,
             status,
-            properties={"flashcard_id": flashcard_id.get_value() if flashcard_id else None},
+            properties={
+                "flashcard_id": flashcard_id.get_value() if flashcard_id else None,
+                "word": word,
+                "scrambled_word": scrambled,
+                "context_sentence": context_sentence,
+                "word_translation": word_translation,
+                "context_sentence_translation": context_sentence_translation,
+                "emoji": emoji,
+            },
         )
 
         await self.entry_factory.create(
@@ -311,22 +319,8 @@ class UnscrambleWordExerciseFactory:
             order=0,
         )
 
-        unscramble = UnscrambleWordExercises(
-            exercise_id=exercise.id,
-            word=word,
-            scrambled_word=scrambled,
-            context_sentence=context_sentence,
-            word_translation=word_translation,
-            context_sentence_translation=context_sentence_translation,
-            emoji=emoji,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
-        )
-        self.session.add(unscramble)
-        await self.session.flush()
-        await self.session.refresh(unscramble)
         await self.session.commit()
-        return unscramble
+        return exercise
 
     async def create(
         self,
@@ -339,7 +333,7 @@ class UnscrambleWordExerciseFactory:
         emoji: str | None = "🍌",
         status: ExerciseStatus = ExerciseStatus.NEW,
         flashcard_id: FlashcardId = FlashcardId.no_id(),
-    ) -> UnscrambleWordExercises:
+    ) -> Exercises:
         """Create and persist an UnscrambleWordExercise in the DB (for integration tests)."""
         return await self.build(
             user_id=user_id,

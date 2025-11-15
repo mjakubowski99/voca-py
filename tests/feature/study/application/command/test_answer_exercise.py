@@ -2,15 +2,17 @@ import pytest
 from punq import Container
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import select
-from core.models import ExerciseEntries, SmTwoFlashcards
+from core.models import ExerciseEntries, Exercises, LearningSessionFlashcards, SmTwoFlashcards
 from src.flashcard.domain.models.owner import Owner
 from src.shared.value_objects.flashcard_id import FlashcardId
 from src.study.application.command.answer_exercise import AnswerExercise
 from src.study.domain.enum import ExerciseStatus, Rating
-from src.study.domain.value_objects import ExerciseEntryId, ExerciseId
+from src.study.domain.value_objects import ExerciseEntryId
 from tests.factory import (
     FlashcardDeckFactory,
     FlashcardFactory,
+    LearningSessionFactory,
+    LearningSessionFlashcardFactory,
     UnscrambleWordExerciseFactory,
     WordMatchExerciseFactory,
     UserFactory,
@@ -31,6 +33,9 @@ async def test_handle_unscramble_should_assess_answer_and_update_exercise(
     flashcard_factory: FlashcardFactory,
     unscramble_word_exercise_factory: UnscrambleWordExerciseFactory,
     assert_db_has,
+    learning_session_factory: LearningSessionFactory,
+    learning_session_flashcard_factory: LearningSessionFlashcardFactory,
+    dump_db,
 ):
     # Arrange
     user = await user_factory.create_auth_user()
@@ -52,9 +57,13 @@ async def test_handle_unscramble_should_assess_answer_and_update_exercise(
     )
 
     entry_id = await session.scalar(
-        select(ExerciseEntries.id).where(ExerciseEntries.exercise_id == exercise.exercise_id)
+        select(ExerciseEntries.id).where(ExerciseEntries.exercise_id == exercise.id)
     )
     entry_id = ExerciseEntryId(value=entry_id)
+    session = await learning_session_factory.create(user_id=user.get_id().get_value())
+    await learning_session_flashcard_factory.create(
+        learning_session=session, flashcard=flashcard, exercise_entry_id=entry_id
+    )
 
     # Act
     await handler.handle_unscramble(
@@ -69,6 +78,21 @@ async def test_handle_unscramble_should_assess_answer_and_update_exercise(
             "last_answer": "banan",
             "last_answer_correct": True,
             "score": 100.0,
+        },
+    )
+    await assert_db_has(
+        SmTwoFlashcards,
+        {
+            "flashcard_id": flashcard.id,
+            "user_id": user.get_id().get_value(),
+            "last_rating": Rating.VERY_GOOD.value,
+        },
+    )
+    await assert_db_has(
+        LearningSessionFlashcards,
+        {
+            "exercise_entry_id": entry_id.get_value(),
+            "rating": Rating.VERY_GOOD.value,
         },
     )
 
@@ -103,7 +127,7 @@ async def test_handle_unscramble_should_save_rating_when_exercise_is_completed(
     )
 
     entry_id = await session.scalar(
-        select(ExerciseEntries.id).where(ExerciseEntries.exercise_id == exercise.exercise_id)
+        select(ExerciseEntries.id).where(ExerciseEntries.exercise_id == exercise.id)
     )
     entry_id = ExerciseEntryId(value=entry_id)
 
@@ -151,7 +175,7 @@ async def test_handle_unscramble_with_hints_should_penalize_score(
     )
 
     entry_id = await session.scalar(
-        select(ExerciseEntries.id).where(ExerciseEntries.exercise_id == exercise.exercise_id)
+        select(ExerciseEntries.id).where(ExerciseEntries.exercise_id == exercise.id)
     )
     entry_id = ExerciseEntryId(value=entry_id)
 
@@ -181,7 +205,7 @@ async def test_handle_unscramble_with_hints_should_penalize_score(
 
 
 @pytest.mark.asyncio
-async def test_handle_unscramble_with_incorrect_answer_should_not_complete_exercise(
+async def test_handle_unscramble_with_incorrect_answer_should_complete_exercise(
     handler: AnswerExercise,
     session: AsyncSession,
     user_factory: UserFactory,
@@ -210,7 +234,7 @@ async def test_handle_unscramble_with_incorrect_answer_should_not_complete_exerc
     )
 
     entry_id = await session.scalar(
-        select(ExerciseEntries.id).where(ExerciseEntries.exercise_id == exercise.exercise_id)
+        select(ExerciseEntries.id).where(ExerciseEntries.exercise_id == exercise.id)
     )
     entry_id = ExerciseEntryId(value=entry_id)
 
@@ -238,7 +262,7 @@ async def test_handle_unscramble_with_incorrect_answer_should_not_complete_exerc
         )
     )
     sm_two = result.scalars().first()
-    assert sm_two is None, "Rating should not be saved when exercise is not completed"
+    assert sm_two is not None, "Rating should be saved also when exercise is not completed"
 
 
 @pytest.mark.asyncio
@@ -300,6 +324,8 @@ async def test_handle_word_match_should_assess_answer_and_update_exercise_with_m
     deck_factory: FlashcardDeckFactory,
     flashcard_factory: FlashcardFactory,
     word_match_exercise_factory: WordMatchExerciseFactory,
+    learning_session_factory: LearningSessionFactory,
+    learning_session_flashcard_factory: LearningSessionFlashcardFactory,
     assert_db_has,
 ):
     # Arrange
@@ -345,6 +371,16 @@ async def test_handle_word_match_should_assess_answer_and_update_exercise_with_m
         select(ExerciseEntries.id).where(ExerciseEntries.exercise_id == exercise.id)
     )
     entry_ids = [ExerciseEntryId(value=entry_id) for entry_id in entry_ids.all()]
+    learning_session = await learning_session_factory.create(user_id=user.get_id().get_value())
+    await learning_session_flashcard_factory.create(
+        learning_session=learning_session, flashcard=flashcard1, exercise_entry_id=entry_ids[0]
+    )
+    await learning_session_flashcard_factory.create(
+        learning_session=learning_session, flashcard=flashcard2, exercise_entry_id=entry_ids[1]
+    )
+    await learning_session_flashcard_factory.create(
+        learning_session=learning_session, flashcard=flashcard3, exercise_entry_id=entry_ids[2]
+    )
 
     # Act
 
@@ -354,7 +390,11 @@ async def test_handle_word_match_should_assess_answer_and_update_exercise_with_m
         answer="gato",
     )
 
+    exercise = await session.execute(select(Exercises).where(Exercises.id == exercise.id))
+    exercise = exercise.scalars().first()
+
     # Assert
+    assert exercise.properties["answer_options"] == ["perro", "pájaro", "aguila"]
     await assert_db_has(
         ExerciseEntries,
         {
@@ -377,6 +417,19 @@ async def test_handle_word_match_should_assess_answer_and_update_exercise_with_m
             "last_answer_correct": True,
             "score": 100.0,
         },
+    )
+
+    await assert_db_has(
+        LearningSessionFlashcards,
+        {
+            "exercise_entry_id": entry_ids[1].get_value(),
+            "rating": Rating.VERY_GOOD.value,
+        },
+    )
+
+    await assert_db_has(
+        LearningSessionFlashcards,
+        {"exercise_entry_id": entry_ids[0].get_value(), "rating": None},
     )
 
 

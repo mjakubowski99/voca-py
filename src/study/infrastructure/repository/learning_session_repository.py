@@ -115,7 +115,7 @@ class LearningSessionRepository(ISessionRepository):
         stmt = (
             select(func.count())
             .where(LearningSessionFlashcards.learning_session_id == session_id.get_value())
-            .where(LearningSessionFlashcards.rating.is_(None))
+            .where(LearningSessionFlashcards.rating.isnot(None))
             .where(LearningSessionFlashcards.is_additional.is_(False))
         )
         result = await self.session.execute(stmt)
